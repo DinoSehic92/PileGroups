@@ -174,13 +174,27 @@ class PileOptModel:
         return Nvek
 
     def plotPileGroup(self):
-        
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
+
+        t0 = time.time()
+        #plt.close()
+        self.fig = plt.figure(dpi=100) # figsize=(20,40)
+        #self.fig.clear()
+        elapsed = time.time() - t0
+        print(elapsed)
+
+        ax = self.fig.subplots()
+
+        xmax = max(self.x1vec_q_s)*1.15
+        ymax = max(self.y1vec_q_s)*1.15
+
+        ax.set_xlim(-xmax,xmax)
+        ax.set_ylim(-ymax,ymax)
 
         Ex2normVek = self.Ex2
         Ey2normVek = self.Ey2
-        fak = 8
+
+        fak = 10
+
         for i in range(self.npiles):
             ax.plot(self.Ex2[i][0], self.Ey2[i][0], 'o', mfc='none', color='black',markersize=8)
             ax.set_aspect('equal')
@@ -193,7 +207,7 @@ class PileOptModel:
 
             ax.plot(Ex2normVek[i,:], Ey2normVek[i,:], color='black')
 
-        plt.show()
+        #plt.show()
 
     def pileExpand(self,nr):
         # Expanding pile data from a single quadrant
@@ -206,6 +220,8 @@ class PileOptModel:
         self.bearing_q      = np.array(np.zeros((self.npiles_q)))
         self.x1vec_q        = np.array(np.zeros((self.npiles_q)))
         self.y1vec_q        = np.array(np.zeros((self.npiles_q)))
+        self.x2vec_q        = np.array(np.zeros((self.npiles_q)))
+        self.y2vec_q        = np.array(np.zeros((self.npiles_q)))
         self.z1vec_q        = np.array(np.zeros((self.npiles_q)))
         self.incl_q         = np.array(np.zeros((self.npiles_q)))
         self.lvec_q         = np.ones((self.npiles_q))*self.pLen
@@ -226,12 +242,22 @@ class PileOptModel:
         self.y1vec_q        = self.yvec_arr[nr]
         self.incl_q         = self.incl_arr[nr]
 
+        for i in range(self.npiles_q):
+            if self.incl_q[i] == 0:
+                self.x2vec_q[i] = self.x1vec_q[i]
+                self.y2vec_q[i] = self.y1vec_q[i]
+            else:
+                self.x2vec_q[i] = self.x1vec_q[i] + np.cos(np.radians(self.bearing_q[i]))*self.pLen/self.incl_q[i]
+                self.y2vec_q[i] = self.y1vec_q[i] + np.sin(np.radians(self.bearing_q[i]))*self.pLen/self.incl_q[i]
+
         iter = 0
         for i in range(4):
             for j in range(self.npiles_q):
 
                 self.x1vec[iter]    = a[i]*self.x1vec_q[j]
                 self.y1vec[iter]    = b[i]*self.y1vec_q[j]
+                self.x2vec[iter]    = a[i]*self.x2vec_q[j]
+                self.y2vec[iter]    = b[i]*self.y2vec_q[j]
                 self.z1vec[iter]    = self.z1vec_q[j]
                 self.incl[iter]     = self.incl_q[j]
                 self.lvec[iter]     = self.lvec_q[j]
@@ -249,6 +275,10 @@ class PileOptModel:
     def pileInfluenceRun(self):
         
         print("- Running influence analysis...")
+
+        self.configStore = []
+        self.Nmaxstore = []
+        self.Nminstore = []
 
         for config in range(self.nrConfigs):
             self.pileExpand(config)
@@ -279,7 +309,9 @@ class PileOptModel:
 
             if Nmax < self.Nmaxval and Nmin > self.Nminval:
                 print("Konfiguration " + str(config) + ": " + str(self.bearing_q) + " | " + str(self.incl_q) + " | " + str(self.set_arr[config]) + " | " + str(Nmax) + ", " + str(Nmin))
-
+                self.configStore.append(config)
+                self.Nmaxstore.append(Nmax)
+                self.Nminstore.append(Nmin)
 
 
     def pileSolver(self,config):
