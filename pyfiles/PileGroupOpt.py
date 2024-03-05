@@ -2,13 +2,14 @@ import numpy as np
 import openpyxl
 import time
 import math
-
 import calfem.core as cfc
-import matplotlib.pyplot as plt
+
+from PySide6.QtCore import QObject,Signal
 
 class PileOptModel:
 
-    def defineSettings(self,xvec,yvec,npiles,nvert,singdir,plen,incl,path,nrVal,Nmax,Nmin):
+
+    def defineSettings(self,xvec,yvec,npiles,nvert,singdir,plen,incl,path,Nmax,Nmin):
 
         # Materialegenskaper
         E                       = 2.0e11
@@ -25,7 +26,6 @@ class PileOptModel:
 
         # Lastindata
         self.path               = path
-        self.nrVal              = nrVal
 
         # Indata en kvadrant
         self.x1vec_q_s          = xvec
@@ -41,6 +41,7 @@ class PileOptModel:
 
         self.Nmaxval            = Nmax
         self.Nminval            = Nmin
+
 
     def genElem(self):
 
@@ -68,14 +69,6 @@ class PileOptModel:
             self.Edof1[i, :] = [1, 2, 3, 4, 5, 6, 6*i+7, 6*i+8, 6*i+9, 6*i+10, 6*i+11, 6*i+12]
         
         [self.Ex1, self.Ey1, self.Ez1] = cfc.coordxtr(self.Edof1, self.Coord1, self.Dof1, 2)
-        
-        for i in range(self.npiles):
-            if self.incl[i] == 0:
-                self.x2vec[i] = self.x1vec[i]
-                self.y2vec[i] = self.y1vec[i]
-            else:
-                self.x2vec[i] = self.x1vec[i] + np.cos(np.radians(self.bearing[i]))*self.lvec[i]/self.incl[i]
-                self.y2vec[i] = self.y1vec[i] + np.sin(np.radians(self.bearing[i]))*self.lvec[i]/self.incl[i]
         
         for i in range(self.npiles):
             self.Coord2[i, 0] = self.x1vec[i]
@@ -130,16 +123,25 @@ class PileOptModel:
         # Läser av excelark och genererar matris med samtliga lastfall, kaliberar manuellt
         wb = openpyxl.load_workbook(self.path, data_only=True)
         sheet = wb.active
-        self.lc = np.array(np.zeros((self.nrVal, 7)))
+        self.lc = np.array(np.zeros((999, 7)))
 
-        for i in range(self.nrVal):
+        for i in range(999):
             FX = sheet.cell(row=4+i, column=3).value
             FY = sheet.cell(row=4+i, column=4).value
             FZ = sheet.cell(row=4+i, column=5).value
             MX = sheet.cell(row=4+i, column=6).value
             MY = sheet.cell(row=4+i, column=7).value
             MZ = sheet.cell(row=4+i, column=8).value
-            self.lc[i, :] = [i+1, FX, FY, FZ, MX, MY, MZ]
+
+            if FX != None:
+                self.lc[i, :] = [i+1, FX, FY, FZ, MX, MY, MZ]
+            else:
+                break
+
+        self.nrVal = i
+        return self.nrVal
+            
+
 
     def generateLoads(self,nr):
 
@@ -172,42 +174,6 @@ class PileOptModel:
             Nvek[i] = N[0][0]
 
         return Nvek
-
-    def plotPileGroup(self):
-
-        t0 = time.time()
-        #plt.close()
-        self.fig = plt.figure(dpi=100) # figsize=(20,40)
-        #self.fig.clear()
-        elapsed = time.time() - t0
-        print(elapsed)
-
-        ax = self.fig.subplots()
-
-        xmax = max(self.x1vec_q_s)*1.15
-        ymax = max(self.y1vec_q_s)*1.15
-
-        ax.set_xlim(-xmax,xmax)
-        ax.set_ylim(-ymax,ymax)
-
-        Ex2normVek = self.Ex2
-        Ey2normVek = self.Ey2
-
-        fak = 10
-
-        for i in range(self.npiles):
-            ax.plot(self.Ex2[i][0], self.Ey2[i][0], 'o', mfc='none', color='black',markersize=8)
-            ax.set_aspect('equal')
-            
-            Ex2norm = self.Ex2[i,0] - self.Ex2[i,1]
-            Ey2norm = self.Ey2[i,0] - self.Ey2[i,1]
-
-            Ex2normVek[i,1] = self.Ex2[i,0] - Ex2norm/fak
-            Ey2normVek[i,1] = self.Ey2[i,0] - Ey2norm/fak
-
-            ax.plot(Ex2normVek[i,:], Ey2normVek[i,:], color='black')
-
-        #plt.show()
 
     def pileExpand(self,nr):
         # Expanding pile data from a single quadrant
@@ -272,15 +238,32 @@ class PileOptModel:
 
                 iter = iter + 1
     
-    def pileInfluenceRun(self):
+    def pileInfluenceRun(self,signal_get):
         
         print("- Running influence analysis...")
+
+        self.signal = signal_get
 
         self.configStore = []
         self.Nmaxstore = []
         self.Nminstore = []
 
+        process_store = 0
+
+        self.running = True
+        
+
         for config in range(self.nrConfigs):
+
+            if self.running != True:
+                return
+
+            configprogress = int((100*config)/self.nrConfigs)
+            signals = configprogress - process_store
+            for i in range(signals):
+                self.signal.progress.emit()
+            process_store = configprogress
+            
             self.pileExpand(config)
             self.genElem()  
             
@@ -312,6 +295,8 @@ class PileOptModel:
                 self.configStore.append(config)
                 self.Nmaxstore.append(Nmax)
                 self.Nminstore.append(Nmin)
+                self.signal.check.emit()
+
 
 
     def pileSolver(self,config):
@@ -339,8 +324,6 @@ class PileOptModel:
 
         print("Konfiguration " + str(config) + ": " + str(Nmax) + ", " + str(Nmin))
 
-        self.plotPileGroup()
-
 
 
     def checkCollision(self,bearing_try,incl_try,x1vec_q,y1vec_q,dirvec):
@@ -349,6 +332,8 @@ class PileOptModel:
         step = max((x1vec_q[1] - x1vec_q[0]),(y1vec_q[1] - y1vec_q[0]))
 
         for dir in dirvec:
+            #if dir == 0:
+            #    return False
 
             z = dir*step*self.incl*0.5
 
@@ -372,9 +357,10 @@ class PileOptModel:
             
         return False
     
-    def genPileConfigs(self):
-
+    def genPileConfigs(self,colision,signal_get):
         print("- Finding and filtering possible pile configurations...")
+
+        self.signal = signal_get
 
         self.bearing_arr    = []
         self.incl_arr       = []
@@ -385,9 +371,6 @@ class PileOptModel:
         t0 = time.time()
 
         nInclPiles = self.npiles_q-self.nVertPiles
-
-        dirvec = [1,2,3,4,-1,-2]
-        #dirvec = [1,2,3,4,-1,-2,-3]
 
         npos = len(self.x1vec_q_s)
 
@@ -408,16 +391,15 @@ class PileOptModel:
         for i in range(setnr):
             pileset = pilesetmat[i]
             xvec = []; yvec = []
-            iter = 0
             for j in range(len(pileset)):
                 if pileset[j] != 0:
                     xvec.append(self.x1vec_q_s[j])
                     yvec.append(self.y1vec_q_s[j])
 
-                    iter = iter + 1 
             pilexvec.append(xvec)
             pileyvec.append(yvec)
             setvec.append(pileset)
+
 
         # Pileincl matrix
         pileinclmat = []
@@ -440,12 +422,16 @@ class PileOptModel:
 
         # Generating possible configurations
         n = 0
+        self.totConfigs = setnr*len(piledirmat)*len(pileinclmat)
+        signalstep = int(self.totConfigs)/100
+        ntemp = 0
         for i in range(setnr):
             x1vec_q = pilexvec[i]
             y1vec_q = pileyvec[i]
             set_try = setvec[i]
             for incl_try in pileinclmat:
                 for bearing_try_temp in piledirmat:
+
                     bearing_try = np.zeros((self.npiles_q))
                     step = 0
                     n = n + 1
@@ -453,9 +439,13 @@ class PileOptModel:
                         if incl_try[j] != 0:
                             bearing_try[j] = bearing_try_temp[step]
                             step = step + 1
-
+                    ntemp = ntemp +1 
+                    if ntemp >= signalstep:
+                        self.signal.progress.emit()
+                        ntemp = 0
+                    
                     # Checking for collisions to filter out only suitable configurations
-                    if self.checkCollision(bearing_try,incl_try,x1vec_q,y1vec_q,dirvec) == False:
+                    if self.checkCollision(bearing_try,incl_try,x1vec_q,y1vec_q,colision) == False:
                         self.bearing_arr.append(bearing_try)
                         self.incl_arr.append(incl_try)
                         self.xvec_arr.append(x1vec_q)
@@ -465,8 +455,6 @@ class PileOptModel:
         self.nrConfigs = len(self.bearing_arr)
 
         elapsed = time.time() - t0
-        print("- Number of possible configurations: " + str(self.nrConfigs) + " of " + str(n) + " | " + str(round(elapsed, 2)) + "s")
-
-    
+        print("- Number of possible configurations: " + str(self.nrConfigs) + " of " + str(self.totConfigs) + " | " + str(round(elapsed, 2)) + "s")
 
 #self = PileOptModel()
