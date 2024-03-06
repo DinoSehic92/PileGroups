@@ -1,13 +1,18 @@
 import numpy as np
-import openpyxl
-import time
-import math
-import calfem.core as cfc
 
-from PySide6.QtCore import QObject,Signal
+import pylightxl as xl
+
+from math import factorial
+
+from calfem.core import beam3e
+from calfem.core import bar3e
+from calfem.core import bar3s
+from calfem.core import assem
+from calfem.core import coordxtr
+from calfem.core import solveq
+from calfem.core import extractEldisp
 
 class PileOptModel:
-
 
     def defineSettings(self,xvec,yvec,npiles,nvert,singdir,plen,incl,path,Nmax,Nmin):
 
@@ -42,6 +47,7 @@ class PileOptModel:
         self.Nmaxval            = Nmax
         self.Nminval            = Nmin
 
+        self.readLoadCases()
 
     def genElem(self):
 
@@ -68,7 +74,7 @@ class PileOptModel:
         for i in range(self.npiles):
             self.Edof1[i, :] = [1, 2, 3, 4, 5, 6, 6*i+7, 6*i+8, 6*i+9, 6*i+10, 6*i+11, 6*i+12]
         
-        [self.Ex1, self.Ey1, self.Ez1] = cfc.coordxtr(self.Edof1, self.Coord1, self.Dof1, 2)
+        [self.Ex1, self.Ey1, self.Ez1] = coordxtr(self.Edof1, self.Coord1, self.Dof1, 2)
         
         for i in range(self.npiles):
             self.Coord2[i, 0] = self.x1vec[i]
@@ -84,7 +90,7 @@ class PileOptModel:
         for i in range(self.npiles):
             self.Edof2[i, :] = [6*i+7, 6*i+8, 6*i+9, 6*i+(6*self.npiles)+7, 6*i+(6*self.npiles)+8, 6*i+(6*self.npiles)+9]
         
-        [self.Ex2, self.Ey2, self.Ez2] = cfc.coordxtr(self.Edof2, self.Coord2, self.Dof2, 2)
+        [self.Ex2, self.Ey2, self.Ez2] = coordxtr(self.Edof2, self.Coord2, self.Dof2, 2)
 
         self.nDofs = int(np.max(self.Edof2))
         
@@ -104,8 +110,8 @@ class PileOptModel:
             v2 = np.subtract(p3, p1)
             eo = np.cross(v1, v2)
         
-            Ke = cfc.beam3e(self.Ex1[i, :], self.Ey1[i, :], self.Ez1[i, :], eo, self.ep1)
-            self.K = cfc.assem(self.Edof1[i, :], self.K, Ke)
+            Ke = beam3e(self.Ex1[i, :], self.Ey1[i, :], self.Ez1[i, :], eo, self.ep1)
+            self.K = assem(self.Edof1[i, :], self.K, Ke)
         
         self.Edof2 = self.Edof2.astype(int)
         
@@ -115,30 +121,32 @@ class PileOptModel:
             p2 = np.array([self.Ex2[i, :][0], self.Ey2[i, :][0], self.Ez2[i, :][0]])
             p3 = np.array([self.Ex2[i, :][1], self.Ey2[i, :][1], self.Ez2[i, :][1]])
         
-            Ke = cfc.bar3e(self.Ex2[i, :], self.Ey2[i, :], self.Ez2[i, :], self.ep2)
-            self.K = cfc.assem(self.Edof2[i, :], self.K, Ke)
+            Ke = bar3e(self.Ex2[i, :], self.Ey2[i, :], self.Ez2[i, :], self.ep2)
+            self.K = assem(self.Edof2[i, :], self.K, Ke)
 
     def readLoadCases(self):
         print("- Reading loadcases...")
         # Läser av excelark och genererar matris med samtliga lastfall, kaliberar manuellt
-        wb = openpyxl.load_workbook(self.path, data_only=True)
-        sheet = wb.active
+        wb = xl.readxl(self.path)
+        sheet = wb.ws(ws='Sheet1')
+
         self.lc = np.array(np.zeros((999, 7)))
 
         for i in range(999):
-            FX = sheet.cell(row=4+i, column=3).value
-            FY = sheet.cell(row=4+i, column=4).value
-            FZ = sheet.cell(row=4+i, column=5).value
-            MX = sheet.cell(row=4+i, column=6).value
-            MY = sheet.cell(row=4+i, column=7).value
-            MZ = sheet.cell(row=4+i, column=8).value
+            FX = sheet.index(row=4+i, col=3)
+            FY = sheet.index(row=4+i, col=4)
+            FZ = sheet.index(row=4+i, col=5)
+            MX = sheet.index(row=4+i, col=6)
+            MY = sheet.index(row=4+i, col=7)
+            MZ = sheet.index(row=4+i, col=8)
 
-            if FX != None:
+            if FX != '':
                 self.lc[i, :] = [i+1, FX, FY, FZ, MX, MY, MZ]
             else:
                 break
-
+        
         self.nrVal = i
+
         return self.nrVal
             
 
@@ -158,7 +166,7 @@ class PileOptModel:
 
 
     def analyseLoadcases(self,f):
-        [a, r] = cfc.solveq(self.K, f, self.bc)
+        [a, r] = solveq(self.K, f, self.bc)
 
         return a, r
 
@@ -168,12 +176,18 @@ class PileOptModel:
         Nvek = np.array(np.zeros((self.npiles)))
 
         for i in range(self.npiles):
-            Ed = cfc.extractEldisp(self.Edof2[i, :], a)
-            N  = cfc.bar3s(self.Ex2[i, :], self.Ey2[i, :], self.Ez2[i, :], self.ep2, Ed)
+            Ed = extractEldisp(self.Edof2[i, :], a)
+            N  = bar3s(self.Ex2[i, :], self.Ey2[i, :], self.Ez2[i, :], self.ep2, Ed)
 
             Nvek[i] = N[0][0]
 
         return Nvek
+    
+    def returnPileGroup(self,nr):
+        self.pileExpand(nr)
+        print(self.bearing_q)
+        print(self.x1vec_q)
+        print(self.y1vec_q)
 
     def pileExpand(self,nr):
         # Expanding pile data from a single quadrant
@@ -252,7 +266,6 @@ class PileOptModel:
 
         self.running = True
         
-
         for config in range(self.nrConfigs):
 
             if self.running != True:
@@ -291,7 +304,7 @@ class PileOptModel:
             Nmin = round(0.001*np.min(Nvek))
 
             if Nmax < self.Nmaxval and Nmin > self.Nminval:
-                print("Konfiguration " + str(config) + ": " + str(self.bearing_q) + " | " + str(self.incl_q) + " | " + str(self.set_arr[config]) + " | " + str(Nmax) + ", " + str(Nmin))
+                print("Config: " + str(config) + ": " + str(self.bearing_q) + " | " + str(self.incl_q) + " | " + str(self.set_arr[config]) + " | " + str(Nmax) + ", " + str(Nmin))
                 self.configStore.append(config)
                 self.Nmaxstore.append(Nmax)
                 self.Nminstore.append(Nmin)
@@ -319,17 +332,23 @@ class PileOptModel:
             a, r = self.analyseLoadcases(f)
             Nmat[:,i] = self.analyseResults(a)
 
-        Nmax = round(0.001*np.max(Nmat))
-        Nmin = round(0.001*np.min(Nmat))
+        self.nmax_single = round(0.001*np.max(Nmat))
+        self.nmin_single = round(0.001*np.min(Nmat))
 
-        print("Konfiguration " + str(config) + ": " + str(Nmax) + ", " + str(Nmin))
+        self.nmax_single_pile = np.zeros((self.npiles))
+        self.nmin_single_pile = np.zeros((self.npiles))
 
+        for i in range(self.npiles):
+            self.nmax_single_pile[i] = round(0.001*np.max(Nmat[i,:]))
+            self.nmin_single_pile[i] = round(0.001*np.min(Nmat[i,:]))
+
+        print("Konfiguration " + str(config) + ": " + str(self.nmax_single) + ", " + str(self.nmin_single))
 
 
     def checkCollision(self,bearing_try,incl_try,x1vec_q,y1vec_q,dirvec):
 
         prec = 1
-        step = max((x1vec_q[1] - x1vec_q[0]),(y1vec_q[1] - y1vec_q[0]))
+        step = max(abs(x1vec_q[1] - x1vec_q[0]),abs(y1vec_q[1] - y1vec_q[0]))
 
         for dir in dirvec:
             #if dir == 0:
@@ -368,14 +387,12 @@ class PileOptModel:
         self.yvec_arr       = []
         self.set_arr        = []
 
-        t0 = time.time()
-
         nInclPiles = self.npiles_q-self.nVertPiles
 
         npos = len(self.x1vec_q_s)
 
         # Pileset matrix
-        setnr = int(math.factorial(npos) / (math.factorial(npos-self.npiles_q)*math.factorial(self.npiles_q)))
+        setnr = int(factorial(npos) / (factorial(npos-self.npiles_q)*factorial(self.npiles_q)))
         pilesetmat = np.array(np.zeros((setnr,npos)))
         
         iter = 0
@@ -454,7 +471,6 @@ class PileOptModel:
 
         self.nrConfigs = len(self.bearing_arr)
 
-        elapsed = time.time() - t0
-        print("- Number of possible configurations: " + str(self.nrConfigs) + " of " + str(self.totConfigs) + " | " + str(round(elapsed, 2)) + "s")
+        print("- Number of possible configurations: " + str(self.nrConfigs) + " of " + str(self.totConfigs))
 
 #self = PileOptModel()

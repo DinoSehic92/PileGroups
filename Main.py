@@ -2,10 +2,12 @@ import pyfiles
 import sys
 import numpy as np
 
-import unreal_stylesheet
+#import unreal_stylesheetpip 
+import qdarktheme
+
 import pyqtgraph as pg
 
-from PySide6.QtWidgets import QDialog,QApplication,QVBoxLayout,QGroupBox,QLabel,QLineEdit,QPushButton,QHBoxLayout,QGridLayout,QListWidget,QTableWidget,QHeaderView,QProgressBar,QTableWidgetItem, QCheckBox
+from PySide6.QtWidgets import QDialog,QApplication,QVBoxLayout,QGroupBox,QLabel,QLineEdit,QPushButton,QHBoxLayout,QGridLayout,QListWidget,QTableWidget,QHeaderView,QProgressBar,QTableWidgetItem,QCheckBox
 from PySide6.QtCore import Qt, QThreadPool, Signal, Slot, QObject
 
 pg_data = pyfiles.PileOptModel()
@@ -47,9 +49,34 @@ class MainWindow(QDialog):
 
         self.path.setText("C:\\Utvecklingsprojekt\\PileGroups\\Underlag\Loadcases.xlsx")
 
-
         xvec        = [0.5, 0.5, 0.5, 1.5, 1.5, 1.5, 2.5, 2.5, 2.5, "", "", "", "", "", "", "", "", "", "", ""]
         yvec        = [2, 3, 4, 2, 3, 4, 2, 3, 4, "", "", "", "", "", "", "", "", "", "", ""]
+
+
+        self.nPiles.setText("6")
+        self.nVertPiles.setText("0")
+        self.incl.setText("4")
+        self.sdirPiles.setText("2")
+        self.plen.setText("7")
+
+        self.nMax.setText("25")
+        self.nMin.setText("-1000")
+        self.nFilter.setChecked(True)
+
+        self.col_up.setText("2")
+        self.col_down.setText("4")
+        self.coli_box.setChecked(True)
+
+        self.h_slab.setText("10")
+        self.w_slab.setText("4")
+
+        self.path.setText("C:\\Utvecklingsprojekt\\PileGroups\\Underlag\Loadcases4.xlsx")
+
+        xvec        = [1.6, 1.6, 1.6, 1.6, 1.6, 0.8, 0.8, 0.8, 0.8, 0.8, "", "", "", "", "", "", "", "", "", ""]
+        yvec        = [4.6, 3.8, 3.0, 2.2, 1.4, 4.6, 3.8, 3.0, 2.2, 1.4, "", "", "", "", "", "", "", "", "", ""]
+
+
+
 
         for i in range(len(xvec)):
             xval = QTableWidgetItem(str(xvec[i])); xval.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -67,6 +94,7 @@ class MainWindow(QDialog):
         incl        = int(self.incl.text())
 
         n_filter = self.nFilter.isChecked()
+
         if n_filter == True:
             Nmax        = int(self.nMax.text())
             Nmin        = int(self.nMin.text())
@@ -133,6 +161,7 @@ class MainWindow(QDialog):
 
 
     def run_infl(self):
+        self.configList.clear()
         self.read_input()
         lcnr = pyfiles.PileOptModel.readLoadCases(pg_data)
         self.nr_lcs.setText(str(lcnr))
@@ -162,10 +191,27 @@ class MainWindow(QDialog):
         pg_data.running = False
         self.progress_bar.setValue(0)
 
+    def run_single(self):
+        self.read_input()
+        self.case_singlerun = int(self.single_case.text())
 
+        pyfiles.PileOptModel.pileSolver(pg_data,self.case_singlerun)
+        pyfiles.PileOptModel.returnPileGroup(pg_data,self.case_singlerun)
+
+        self.max_case.setText(str(pg_data.nmax_single))
+        self.min_case.setText(str(pg_data.nmin_single))
+
+        self.reactionList.clear()
+
+        for i in range(pg_data.npiles):
+            self.reactionList.addItems(["Pile " + str(i) + ":  " + str(round(pg_data.nmax_single_pile[i])) + " | " + str(round(pg_data.nmin_single_pile[i]))])
 
     def update_plot(self):
-        nr = self.configList.currentRow()
+        rowValue = self.configList.currentItem().text().replace('Config ','')
+        bpoint = rowValue.index(":")
+        nr = int(rowValue[:bpoint])
+        self.single_case.setText(str(nr))
+        print("Plotting Config: " + str(nr))
         self.plot_config(nr)
 
     def update_list(self):
@@ -174,21 +220,46 @@ class MainWindow(QDialog):
         for i in range(len(pg_data.configStore)):
             self.configList.addItems(["Config " + str(pg_data.configStore[i]) + ":  " + str(pg_data.Nmaxstore[i]) + " | " + str(pg_data.Nminstore[i])])
             
+
+
+    def reaction_plot_max(self):
+        self.plot_config(self.case_singlerun)
+        
+        for i in range(pg_data.npiles):
+            colorTag = 'g'
+            if pg_data.nmax_single_pile[i] > 0:
+                colorTag = 'r'
+            text = pg.TextItem(str(round(pg_data.nmax_single_pile[i])), color=colorTag,anchor=(0,0))
+            text.setPos(pg_data.x1vec[i],pg_data.y1vec[i])
+            self.view_area.addItem(text)
+    
+    def reaction_plot_min(self):
+        self.plot_config(self.case_singlerun)
+        
+        for i in range(pg_data.npiles):
+            colorTag = 'g'
+            if pg_data.nmin_single_pile[i] > 0:
+                colorTag = 'r'
+            text = pg.TextItem(str(round(pg_data.nmin_single_pile[i])), color=colorTag,anchor=(0,0))
+            text.setPos(pg_data.x1vec[i],pg_data.y1vec[i])
+            self.view_area.addItem(text)
+
+
     def plot_config(self,nr):
         pyfiles.PileOptModel.pileExpand(pg_data,nr) 
         self.view_area.plotItem.clear()
 
-        valrange=max(np.max(pg_data.x1vec),np.max(pg_data.y1vec))
-        self.view_area.setXRange(-valrange,valrange, padding=0.1)
-        self.view_area.setYRange(-valrange,valrange, padding=0.1)
+        valrange=max(np.max(pg_data.x1vec),np.max(pg_data.y1vec),self.slab_h*0.5,self.slab_w*0.5)
+        self.view_area.setXRange(-valrange,valrange, padding=0.05)
+        self.view_area.setYRange(-valrange,valrange, padding=0.05)
         self.view_area.setBackground(None)
 
-        plt = self.view_area.plotItem.plot(pg_data.x1vec,pg_data.y1vec,pen=None,symbol='o',symbolPen = 'w', color='w', symbolBrush='black')
+        plt = self.view_area.plotItem.plot(pg_data.x1vec,pg_data.y1vec,pen=None,symbol='o',symbolPen = self.plotpen, color=self.plotpen, symbolBrush=None)
     
         h = self.slab_h*0.5; y_draft = [h,h,-h,-h,h]
         w = self.slab_w*0.5; x_draft = [w,-w,-w,w,w]
 
-        plt = self.view_area.plotItem.plot(x_draft,y_draft,pen="w",symbol=None, color='w')
+        plt = self.view_area.plotItem.plot(x_draft,y_draft,pen=self.plotpen,symbol=None, color=self.plotpen)
 
         fak = 0.3
 
@@ -202,11 +273,15 @@ class MainWindow(QDialog):
                 y2 = pg_data.y1vec[i] + np.sin(np.radians(pg_data.bearing[i]))*fak
 
             plt.setSymbolSize(15)
-            plt = self.view_area.plotItem.plot([pg_data.x1vec[i],x2],[pg_data.y1vec[i],y2],pen="w", color="w")
-        
+            plt = self.view_area.plotItem.plot([pg_data.x1vec[i],x2],[pg_data.y1vec[i],y2],pen=self.plotpen, color=self.plotpen)
 
+            paxis_y = [-(self.slab_h*0.5+0.5), (self.slab_h*0.5+0.5)]
+            paxis_x = [-(self.slab_w*0.5+0.5), (self.slab_w*0.5+0.5)]
+
+            plt = self.view_area.plotItem.plot([paxis_x[0],paxis_x[1]],[0,0], pen='gray', color='gray')
+            plt = self.view_area.plotItem.plot([0,0],[paxis_y[0],paxis_y[1]], pen='gray', color='gray')
+        
     def draft_config(self):
-        print('drafting')
         self.read_input()
         self.view_area.plotItem.clear()
 
@@ -218,9 +293,37 @@ class MainWindow(QDialog):
         h = self.slab_h*0.5; y_draft = [h,h,-h,-h,h]
         w = self.slab_w*0.5; x_draft = [w,-w,-w,w,w]
 
-        plt = self.view_area.plotItem.plot(x_draft,y_draft,pen="w",symbol=None, color='w')
+        plt = self.view_area.plotItem.plot(x_draft,y_draft,pen=self.plotpen,symbol=None, color=self.plotpen)
 
-        plt = self.view_area.plotItem.plot(self.xvec,self.yvec,pen=None,symbol="x", symbolPen="w", color="w", symbolBrush="w")
+        plt = self.view_area.plotItem.plot(self.xvec,self.yvec,pen=None,symbol="x", symbolPen=self.plotpen, color=self.plotpen, symbolBrush=self.plotpen)
+
+        paxis_y = [-(self.slab_h*0.5+0.5), (self.slab_h*0.5+0.5)]
+        paxis_x = [-(self.slab_w*0.5+0.5), (self.slab_w*0.5+0.5)]
+
+        plt = self.view_area.plotItem.plot([paxis_x[0],paxis_x[1]],[0,0], pen='gray', color='gray')
+        plt = self.view_area.plotItem.plot([0,0],[paxis_y[0],paxis_y[1]], pen='gray', color='gray')
+
+    def swich_color_mode(self):
+
+        self.dark_mode = not self.dark_mode
+
+        app = QApplication.instance()
+        if self.dark_mode == True:
+            app.setStyleSheet(qdarktheme.load_stylesheet("dark"))
+            self.plotpen = 'white'
+        else:
+            app.setStyleSheet(qdarktheme.load_stylesheet("light"))
+            self.plotpen = 'black'
+        
+        self.view_area.plotItem.clear()
+        self.view_area.setBackground(None)
+
+    def resetRun(self):
+
+        self.view_area.plotItem.clear()
+        self.configList.clear()
+        self.reactionList.clear()
+        self.read_input()
 
     def create_input_area(self):
         self.input_area     = QGroupBox()
@@ -229,8 +332,10 @@ class MainWindow(QDialog):
         self.path           = QLineEdit()
         configButton        = QPushButton(" Configure analysis ")       ; configButton.clicked.connect(self.run_config)
         runButton           = QPushButton(" Influence Run ")            ; runButton.clicked.connect(self.run_infl)
-        resetButton         = QPushButton(" Reset ")                    ; resetButton.clicked.connect(self.write_input)
+        singleButton        = QPushButton(" Single Run ")               ; singleButton.clicked.connect(self.run_single)
+        resetButton         = QPushButton(" Reset ")                    ; resetButton.clicked.connect(self.resetRun)
         stopButton          = QPushButton(" Stop ")                     ; stopButton.clicked.connect(self.stop_worker)
+        colorButton         = QPushButton(" Colormode ")                ; colorButton.clicked.connect(self.swich_color_mode)
 
         layout              = QHBoxLayout()
 
@@ -238,8 +343,10 @@ class MainWindow(QDialog):
         layout.addWidget(self.path,1)
         layout.addWidget(configButton)
         layout.addWidget(runButton)
+        layout.addWidget(singleButton)
         layout.addWidget(resetButton)
         layout.addWidget(stopButton)
+        layout.addWidget(colorButton)
 
         configButton.setMinimumHeight(25); configButton.setMinimumWidth(120)
         runButton.setMinimumHeight(25); runButton.setMinimumWidth(120)
@@ -276,6 +383,10 @@ class MainWindow(QDialog):
         layout.addWidget(QLabel("Height"),1,10);                    self.h_slab = QLineEdit("-");   layout.addWidget(self.h_slab,1,11)
         layout.addWidget(QLabel("Width"),2,10);                     self.w_slab = QLineEdit("-");   layout.addWidget(self.w_slab,2,11)
 
+        layout.addWidget(QLabel("Single Case"),0,12);               self.single_case = QLineEdit("1");   layout.addWidget(self.single_case,0,13)
+        layout.addWidget(QLabel("Max"),1,12);                       self.max_case = QLineEdit("-");     layout.addWidget(self.max_case,1,13)
+        layout.addWidget(QLabel("Min"),2,12);                       self.min_case = QLineEdit("-");     layout.addWidget(self.min_case,2,13)
+
         self.pos_conf.setMinimumWidth(60)
         self.nMax.setMinimumWidth(60)
 
@@ -283,6 +394,9 @@ class MainWindow(QDialog):
         self.tot_conf.setReadOnly(True)
         self.fil_conf.setReadOnly(True)
         self.nr_lcs.setReadOnly(True)
+
+        self.max_case.setReadOnly(True)
+        self.min_case.setReadOnly(True)
 
         self.settings_area.setLayout(layout)
 
@@ -297,11 +411,15 @@ class MainWindow(QDialog):
         self.configList.setFixedWidth(150)
         self.configList.clicked.connect(self.update_plot)
 
+        self.reactionList = QListWidget()
+        self.reactionList.setFixedWidth(150)
+        #self.reactionList.clicked.connect(self.update_plot)
+
         self.input_table = QTableWidget()
         self.input_table.setFixedWidth(150)
         self.input_table.setFixedWidth(150)
 
-        
+
         self.input_table.setRowCount(20)
         self.input_table.setColumnCount(2)
 
@@ -317,6 +435,12 @@ class MainWindow(QDialog):
 
         self.aux_button = QPushButton(" Aux button ")
 
+        self.plot_max = QPushButton(" Plot max ")
+        self.plot_max.clicked.connect(self.reaction_plot_max)
+    
+        self.plot_min = QPushButton(" Plot min ")
+        self.plot_min.clicked.connect(self.reaction_plot_min)
+
 
         layout = QHBoxLayout()
         
@@ -327,6 +451,14 @@ class MainWindow(QDialog):
         sublayout = QVBoxLayout()
         sublayout.addWidget(self.configList)
         sublayout.addWidget(self.aux_button)
+        subarea.setLayout(sublayout)
+        layout.addWidget(subarea)
+
+        subarea = QGroupBox()
+        sublayout = QVBoxLayout()
+        sublayout.addWidget(self.reactionList)
+        sublayout.addWidget(self.plot_max)
+        sublayout.addWidget(self.plot_min)
         subarea.setLayout(sublayout)
         layout.addWidget(subarea)
 
@@ -349,7 +481,8 @@ class MainWindow(QDialog):
         self.progress_area.setLayout(layout)
 
     def drawUI(self):
-        unreal_stylesheet.setup()
+        self.dark_mode = True
+        self.plotpen = 'white'
         self.create_input_area()
         self.create_settings_area()
         self.create_result_area()
@@ -364,10 +497,16 @@ class MainWindow(QDialog):
         mainWindow = QDialog()
         self.setLayout(main_layout)
         self.setWindowTitle("Pile Optimization")
-        self.resize(700,800)
-         
+        self.resize(700,880)
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+    app.setStyleSheet(qdarktheme.load_stylesheet("dark"))
+
     window = MainWindow()
     sys.exit(window.exec())
+
+
+# nuitka --standalone --plugin-enable=pyside6  Main.py  
+# pyinstaller --onefile Main.py
