@@ -76,8 +76,6 @@ class MainWindow(QDialog):
         yvec        = [4.6, 3.8, 3.0, 2.2, 1.4, 4.6, 3.8, 3.0, 2.2, 1.4, "", "", "", "", "", "", "", "", "", ""]
 
 
-
-
         for i in range(len(xvec)):
             xval = QTableWidgetItem(str(xvec[i])); xval.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             yval = QTableWidgetItem(str(yvec[i])); yval.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -163,6 +161,8 @@ class MainWindow(QDialog):
     def run_infl(self):
         self.configList.clear()
         self.read_input()
+        self.inflNmax = []
+        self.inflNmin = []
         lcnr = pyfiles.PileOptModel.readLoadCases(pg_data)
         self.nr_lcs.setText(str(lcnr))
 
@@ -193,13 +193,13 @@ class MainWindow(QDialog):
 
     def run_single(self):
         self.read_input()
-        self.case_singlerun = int(self.single_case.text())
+        self.case_singlerun = int(self.singleCase.text())
 
         pyfiles.PileOptModel.pileSolver(pg_data,self.case_singlerun)
         pyfiles.PileOptModel.returnPileGroup(pg_data,self.case_singlerun)
 
-        self.max_case.setText(str(pg_data.nmax_single))
-        self.min_case.setText(str(pg_data.nmin_single))
+        self.singleNmax.setText(str(pg_data.nmax_single))
+        self.singleNmin.setText(str(pg_data.nmin_single))
 
         self.reactionList.clear()
 
@@ -210,16 +210,22 @@ class MainWindow(QDialog):
         rowValue = self.configList.currentItem().text().replace('Config ','')
         bpoint = rowValue.index(":")
         nr = int(rowValue[:bpoint])
-        self.single_case.setText(str(nr))
+        self.singleCase.setText(str(nr))
         print("Plotting Config: " + str(nr))
         self.plot_config(nr)
 
     def update_list(self):
         self.configList.clear()
 
+        self.inflNmax.append(pg_data.Nmaxstore)
+        self.inflNmin.append(pg_data.Nminstore)
+
         for i in range(len(pg_data.configStore)):
             self.configList.addItems(["Config " + str(pg_data.configStore[i]) + ":  " + str(pg_data.Nmaxstore[i]) + " | " + str(pg_data.Nminstore[i])])
             
+
+        self.caseNmax.setText(str(np.max(self.inflNmax)))
+        self.caseNmin.setText(str(np.max(self.inflNmin)))
 
 
     def reaction_plot_max(self):
@@ -383,10 +389,6 @@ class MainWindow(QDialog):
         layout.addWidget(QLabel("Height"),1,10);                    self.h_slab = QLineEdit("-");   layout.addWidget(self.h_slab,1,11)
         layout.addWidget(QLabel("Width"),2,10);                     self.w_slab = QLineEdit("-");   layout.addWidget(self.w_slab,2,11)
 
-        layout.addWidget(QLabel("Single Case"),0,12);               self.single_case = QLineEdit("1");   layout.addWidget(self.single_case,0,13)
-        layout.addWidget(QLabel("Max"),1,12);                       self.max_case = QLineEdit("-");     layout.addWidget(self.max_case,1,13)
-        layout.addWidget(QLabel("Min"),2,12);                       self.min_case = QLineEdit("-");     layout.addWidget(self.min_case,2,13)
-
         self.pos_conf.setMinimumWidth(60)
         self.nMax.setMinimumWidth(60)
 
@@ -394,9 +396,6 @@ class MainWindow(QDialog):
         self.tot_conf.setReadOnly(True)
         self.fil_conf.setReadOnly(True)
         self.nr_lcs.setReadOnly(True)
-
-        self.max_case.setReadOnly(True)
-        self.min_case.setReadOnly(True)
 
         self.settings_area.setLayout(layout)
 
@@ -441,28 +440,52 @@ class MainWindow(QDialog):
         self.plot_min = QPushButton(" Plot min ")
         self.plot_min.clicked.connect(self.reaction_plot_min)
 
+        self.nconfigmax = QLabel('0')
+        self.nconfigmin = QLabel('0')
 
         layout = QHBoxLayout()
         
         layout.addWidget(self.view_area,1)
         layout.setSpacing(20)
 
-        subarea = QGroupBox()
+        subarea = QGroupBox('Configurations')
         sublayout = QVBoxLayout()
+
+
+        textLayout = QGridLayout()
+        textarea   = QGroupBox()
+
+        textLayout.addWidget(QLabel("Max"),0,0); self.caseNmax = QLabel("0"); textLayout.addWidget(self.caseNmax,0,1); textLayout.addWidget(QLabel("kN"),0,2)
+        textLayout.addWidget(QLabel("Min"),1,0); self.caseNmin = QLabel("0"); textLayout.addWidget(self.caseNmin,1,1); textLayout.addWidget(QLabel("kN"),1,2)
+        textarea.setLayout(textLayout)
+
+        sublayout.addWidget(textarea)
         sublayout.addWidget(self.configList)
         sublayout.addWidget(self.aux_button)
+
         subarea.setLayout(sublayout)
+
         layout.addWidget(subarea)
 
-        subarea = QGroupBox()
+        subarea = QGroupBox('Single pile reactions')
         sublayout = QVBoxLayout()
+        textLayout = QGridLayout()
+        textarea   = QGroupBox()
+
+        textLayout.addWidget(QLabel("Case"),0,0); self.singleCase = QLabel("0"); textLayout.addWidget(self.singleCase,0,1)
+        textLayout.addWidget(QLabel("Max"),1,0);  self.singleNmax = QLabel("0"); textLayout.addWidget(self.singleNmax,1,1); textLayout.addWidget(QLabel("kN"),1,2)
+        textLayout.addWidget(QLabel("Min"),2,0);  self.singleNmin = QLabel("0"); textLayout.addWidget(self.singleNmin,2,1); textLayout.addWidget(QLabel("kN"),2,2)
+
+        textarea.setLayout(textLayout)
+
+        sublayout.addWidget(textarea)
         sublayout.addWidget(self.reactionList)
         sublayout.addWidget(self.plot_max)
         sublayout.addWidget(self.plot_min)
         subarea.setLayout(sublayout)
         layout.addWidget(subarea)
 
-        subarea = QGroupBox()
+        subarea = QGroupBox('Possible pile placements')
         sublayout = QVBoxLayout()
         sublayout.addWidget(self.input_table)
         sublayout.addWidget(self.draft_button)
@@ -508,5 +531,5 @@ if __name__ == '__main__':
     sys.exit(window.exec())
 
 
-# nuitka --standalone --plugin-enable=pyside6  Main.py  
+# nuitka --standalone --plugin-enable=pyside6 Main.py  
 # pyinstaller --onefile Main.py
