@@ -1,8 +1,10 @@
 import numpy as np
+import win32api, win32con, win32process
 
 import pylightxl as xl
 
 from math import factorial
+import time
 
 from calfem.core import beam3e
 from calfem.core import bar3e
@@ -10,21 +12,21 @@ from calfem.core import bar3s
 from calfem.core import assem
 from calfem.core import coordxtr
 from calfem.core import solveq
-from calfem.core import extractEldisp
+#from calfem.core import extractEldisp
 
 class PileOptModel:
 
-    def defineSettings(self,xvec,yvec,npiles,nvert,singdir,plen,incl,path,Nmax,Nmin):
+    def defineSettings(self,xvec,yvec,npiles,nvert,singdir,plen,incl,path,Nmax,Nmin,pile_dist):
 
         # Materialegenskaper
         E                       = 2.0e11
         A1                      = 1.2193e-2
         
-        A                       = 1000000.0
-        G                       = 1000000.0
-        Iy                      = 1000000.0
-        Iz                      = 1000000.0
-        Kv                      = 1000000.0
+        A                       = 1000.0
+        G                       = 1000.0
+        Iy                      = 1000.0
+        Iz                      = 1000.0
+        Kv                      = 1000.0
         
         self.ep1                = [E, G, A, Iy, Iz, Kv]
         self.ep2                = [E, A1]
@@ -47,20 +49,19 @@ class PileOptModel:
         self.Nmaxval            = Nmax
         self.Nminval            = Nmin
 
+        self.pile_dist          = pile_dist
+
+        self.running            = False
+        self.pause              = False
+
         self.readLoadCases()
 
-    def genElem(self):
-
+    def genBeams(self):
         # Elementdata, beam elements
-        self.Coord1             = np.array(np.zeros((self.npiles+1, 3)))
-        self.Dof1               = np.array(np.zeros((self.npiles+1, 6)))
-        self.Edof1              = np.array(np.zeros((self.npiles, 12)))
-
-        # Elementdata, bar elements
-        self.Coord2             = np.array(np.zeros((2*self.npiles, 3)))
-        self.Dof2               = np.array(np.zeros((2*self.npiles, 3)))
-        self.Edof2              = np.array(np.zeros((self.npiles, 6)))
-        
+        self.Coord1             = np.zeros((self.npiles+1, 3))
+        self.Dof1               = np.zeros((self.npiles+1, 6))
+        self.Edof1              = np.zeros((self.npiles, 12))
+    
         dpap                    = 0.000001
         self.Coord1[0, 2]       = dpap
 
@@ -75,6 +76,12 @@ class PileOptModel:
             self.Edof1[i, :] = [1, 2, 3, 4, 5, 6, 6*i+7, 6*i+8, 6*i+9, 6*i+10, 6*i+11, 6*i+12]
         
         [self.Ex1, self.Ey1, self.Ez1] = coordxtr(self.Edof1, self.Coord1, self.Dof1, 2)
+
+    def genPiles(self):
+        # Elementdata, bar elements
+        self.Coord2             = np.zeros((2*self.npiles, 3))
+        self.Dof2               = np.zeros((2*self.npiles, 3))
+        self.Edof2              = np.zeros((self.npiles, 6))
         
         for i in range(self.npiles):
             self.Coord2[i, 0] = self.x1vec[i]
@@ -97,8 +104,9 @@ class PileOptModel:
 
     def assembElem(self):    
 
-        self.K          = np.matrix(np.zeros((self.nDofs, self.nDofs)))
+        self.K          = np.zeros((self.nDofs, self.nDofs))
         self.Edof1      = self.Edof1.astype(int)
+        self.Edof2      = self.Edof2.astype(int)
         
         for i in range(self.npiles):
         
@@ -112,17 +120,10 @@ class PileOptModel:
         
             Ke = beam3e(self.Ex1[i, :], self.Ey1[i, :], self.Ez1[i, :], eo, self.ep1)
             self.K = assem(self.Edof1[i, :], self.K, Ke)
-        
-        self.Edof2 = self.Edof2.astype(int)
-        
-        for i in range(self.npiles):
 
-            p1 = np.array([0, 0, 0])
-            p2 = np.array([self.Ex2[i, :][0], self.Ey2[i, :][0], self.Ez2[i, :][0]])
-            p3 = np.array([self.Ex2[i, :][1], self.Ey2[i, :][1], self.Ez2[i, :][1]])
-        
             Ke = bar3e(self.Ex2[i, :], self.Ey2[i, :], self.Ez2[i, :], self.ep2)
             self.K = assem(self.Edof2[i, :], self.K, Ke)
+    
 
     def readLoadCases(self):
         print("- Reading loadcases...")
@@ -130,7 +131,7 @@ class PileOptModel:
         wb = xl.readxl(self.path)
         sheet = wb.ws(ws='Sheet1')
 
-        self.lc = np.array(np.zeros((999, 7)))
+        self.lc = np.zeros((999, 6))
 
         for i in range(999):
             FX = sheet.index(row=4+i, col=3)
@@ -141,26 +142,23 @@ class PileOptModel:
             MZ = sheet.index(row=4+i, col=8)
 
             if FX != '':
-                self.lc[i, :] = [i+1, FX, FY, FZ, MX, MY, MZ]
+                self.lc[i, :] = [FX, FY, FZ, MX, MY, MZ]
             else:
                 break
         
         self.nrVal = i
-
-        return self.nrVal
             
-
 
     def generateLoads(self,nr):
 
         f = np.array(np.zeros((self.nDofs, 1)))
 
-        f[0] = self.lc[nr,1]*1000
-        f[1] = self.lc[nr,2]*1000
-        f[2] = self.lc[nr,3]*1000
-        f[3] = self.lc[nr,4]*1000
-        f[4] = self.lc[nr,5]*1000
-        f[5] = self.lc[nr,6]*1000
+        f[0] = self.lc[nr,0]*1000
+        f[1] = self.lc[nr,1]*1000
+        f[2] = self.lc[nr,2]*1000
+        f[3] = self.lc[nr,3]*1000
+        f[4] = self.lc[nr,4]*1000
+        f[5] = self.lc[nr,5]*1000
 
         return f
 
@@ -173,18 +171,53 @@ class PileOptModel:
 
     def analyseResults(self,a):
 
-        Nvek = np.array(np.zeros((self.npiles)))
+        Nvek = np.zeros((self.npiles))
+
+        nElements = self.Edof2.shape[0]
+        nDofs = self.Edof2.shape[1]
+        Ed = np.zeros([nElements, nDofs])
+        i = 0
+        for row in self.Edof2:
+            idx = row-1
+            Ed[i, :] = a[np.ix_(idx)].T
+            i += 1
 
         for i in range(self.npiles):
-            Ed = extractEldisp(self.Edof2[i, :], a)
-            N  = bar3s(self.Ex2[i, :], self.Ey2[i, :], self.Ez2[i, :], self.ep2, Ed)
+            #Ed = extractEldisp(self.Edof2[i, :], a)
+            #N  = bar3s(self.Ex2[i, :], self.Ey2[i, :], self.Ez2[i, :], self.ep2, Ed)
+            
+            # previous approach relied on bar3s and extraxtEldisp from CALFEM to solve for Normal force from
+            # global displacement vec a. Performed more efficiently without CALFEM, but kept for reference and comparison
 
-            Nvek[i] = N[0][0]
+            x1, x2  = self.Ex2[i,:]
+            y1, y2  = self.Ey2[i,:]
+            z1, z2  = self.Ez2[i,:]
+
+            dx = x2-x1
+            dy = y2-y1
+            dz = z2-z1
+            L = np.sqrt(dx*dx+dy*dy+dz*dz)
+
+            E = self.ep2[0]
+            A = self.ep2[1]
+
+            eps = (dx*Ed[i][0]/L + dy*Ed[i][1]/L + dz*Ed[i][2]/L)/L
+
+            Ntest = -eps*E*A
+
+            #Nold = round(N[0][0],5)
+            #Nprint = round(Ntest,5)
+
+            #if Nprint != Nold: 
+                #print("ERROR")
+
+
+            Nvek[i] = Ntest
 
         return Nvek
+
     
-    def returnPileGroup(self,nr):
-        self.pileExpand(nr)
+    def returnPileGroup(self):
         print(self.bearing_q)
         print(self.x1vec_q)
         print(self.y1vec_q)
@@ -197,24 +230,21 @@ class PileOptModel:
         c = [0, 90, 180, 270]
 
         # Kvadrantdata
-        self.bearing_q      = np.array(np.zeros((self.npiles_q)))
-        self.x1vec_q        = np.array(np.zeros((self.npiles_q)))
-        self.y1vec_q        = np.array(np.zeros((self.npiles_q)))
-        self.x2vec_q        = np.array(np.zeros((self.npiles_q)))
-        self.y2vec_q        = np.array(np.zeros((self.npiles_q)))
-        self.z1vec_q        = np.array(np.zeros((self.npiles_q)))
-        self.incl_q         = np.array(np.zeros((self.npiles_q)))
+        self.x2vec_q        = np.zeros((self.npiles_q))
+        self.y2vec_q        = np.zeros((self.npiles_q))
         self.lvec_q         = np.ones((self.npiles_q))*self.pLen
 
         # Full data 
-        self.bearing        = np.array(np.zeros((self.npiles_q*4)))
-        self.x1vec          = np.array(np.zeros((self.npiles_q*4)))
-        self.y1vec          = np.array(np.zeros((self.npiles_q*4)))
-        self.z1vec          = np.array(np.zeros((self.npiles_q*4)))
-        self.x2vec          = np.array(np.zeros((self.npiles_q*4)))
-        self.y2vec          = np.array(np.zeros((self.npiles_q*4)))
-        self.incl           = np.array(np.zeros((self.npiles_q*4)))
-        self.lvec           = np.array(np.zeros((self.npiles_q*4)))
+        self.bearing        = np.zeros((self.npiles_q*4))
+        self.x1vec          = np.zeros((self.npiles_q*4))
+        self.y1vec          = np.zeros((self.npiles_q*4))
+        self.z1vec          = np.zeros((self.npiles_q*4))
+        self.x2vec          = np.zeros((self.npiles_q*4))
+        self.y2vec          = np.zeros((self.npiles_q*4))
+        self.incl           = np.zeros((self.npiles_q*4))
+        self.lvec           = np.zeros((self.npiles_q*4))
+        self.z1vec          = np.zeros((self.npiles_q*4))
+
 
         # Set current pile config from arr-vec
         self.bearing_q      = self.bearing_arr[nr]
@@ -238,7 +268,6 @@ class PileOptModel:
                 self.y1vec[iter]    = b[i]*self.y1vec_q[j]
                 self.x2vec[iter]    = a[i]*self.x2vec_q[j]
                 self.y2vec[iter]    = b[i]*self.y2vec_q[j]
-                self.z1vec[iter]    = self.z1vec_q[j]
                 self.incl[iter]     = self.incl_q[j]
                 self.lvec[iter]     = self.lvec_q[j]
 
@@ -252,24 +281,36 @@ class PileOptModel:
 
                 iter = iter + 1
     
-    def pileInfluenceRun(self,signal_get):
+    def pileInfluenceRun(self,signal_get,prio):
+
+        pid = win32api.GetCurrentProcessId()
+        handle = win32api.OpenProcess(win32con.PROCESS_ALL_ACCESS, True, pid)
+        if prio == 3:
+            print("Prio 3"); win32process.SetPriorityClass(handle, win32process.BELOW_NORMAL_PRIORITY_CLASS)
+        if prio == 2:
+            print("Prio 2"); win32process.SetPriorityClass(handle, win32process.NORMAL_PRIORITY_CLASS)
+        if prio == 1:
+            print("Prio 1"); win32process.SetPriorityClass(handle, win32process.HIGH_PRIORITY_CLASS)
+        if prio == 0:
+            print("Prio 0"); win32process.SetPriorityClass(handle, win32process.REALTIME_PRIORITY_CLASS)
         
         print("- Running influence analysis...")
+        self.running                = True
+        self.signal                 = signal_get
+        self.numberSolvedConfigs    = 0
+        process_store               = 0
 
-        self.signal = signal_get
-
-        self.configStore = []
-        self.Nmaxstore = []
-        self.Nminstore = []
-
-        process_store = 0
-
-        self.running = True
+        self.nMaxPileConfig = np.zeros((self.nrConfigs,self.npiles))
+        self.nMinPileConfig = np.zeros((self.nrConfigs,self.npiles))
         
         for config in range(self.nrConfigs):
+            self.currentConfig = config
 
             if self.running != True:
                 return
+            
+            while self.pause == True:
+                time.sleep(0.1)
 
             configprogress = int((100*config)/self.nrConfigs)
             signals = configprogress - process_store
@@ -278,54 +319,55 @@ class PileOptModel:
             process_store = configprogress
             
             self.pileExpand(config)
-            self.genElem()  
+            self.genBeams()
+            self.genPiles()  
             
-            self.f                  = np.matrix(np.zeros((self.nDofs, 1)))
+            self.f                  = np.zeros((self.nDofs, 1))
             self.bc                 = np.arange((6*self.npiles)+7, self.nDofs+1)
-            self.K                  = np.matrix(np.zeros((self.nDofs, self.nDofs)))
+            self.K                  = np.zeros((self.nDofs, self.nDofs))
 
             self.assembElem()
 
-            Ninfl = np.array(np.zeros((self.npiles,6)))
+            Ninfl = np.zeros((self.npiles,6))
 
             for i in range(6):
-                f = np.matrix(np.zeros((self.nDofs, 1)))
-                f[i] = 1000
+                f = np.zeros((self.nDofs, 1))
+                f[i] = 1
                 a, r = self.analyseLoadcases(f)
                 Ninfl[:,i] = self.analyseResults(a)
 
-            Nvek = np.array(np.zeros((self.npiles,self.nrVal)))
+            Nvek = np.zeros((self.npiles,self.nrVal))
 
             for i in range(self.nrVal):
                 for j in range(self.npiles):
-                    Nvek[j,i] = np.matmul(Ninfl[j,:],self.lc[i,1:])
 
-            Nmax = round(0.001*np.max(Nvek))
-            Nmin = round(0.001*np.min(Nvek))
+                    Nvek[j,i] = Ninfl[j,:] @ self.lc[i,:]
+        
+            for i in range(self.npiles):
+                self.nMaxPileConfig[config,i] = np.max(Nvek[i])
+                self.nMinPileConfig[config,i] = np.min(Nvek[i])
+            
+            self.signal.check.emit()
+            self.numberSolvedConfigs = self.numberSolvedConfigs + 1
 
-            if Nmax < self.Nmaxval and Nmin > self.Nminval:
-                print("Config: " + str(config) + ": " + str(self.bearing_q) + " | " + str(self.incl_q) + " | " + str(self.set_arr[config]) + " | " + str(Nmax) + ", " + str(Nmin))
-                self.configStore.append(config)
-                self.Nmaxstore.append(Nmax)
-                self.Nminstore.append(Nmin)
-                self.signal.check.emit()
+        if self.running == True:
+            self.signal.completed.emit()
 
-
-
-    def pileSolver(self,config):
+    def SingleRun(self,selectedConfig):
 
         print("- Running single config analysis...")
 
-        self.pileExpand(config)
-        self.genElem()
+        self.pileExpand(selectedConfig)
+        self.genBeams()
+        self.genPiles()
 
-        self.f                  = np.matrix(np.zeros((self.nDofs, 1)))
+        self.f                  = np.zeros((self.nDofs, 1))
         self.bc                 = np.arange((6*self.npiles)+7, self.nDofs+1)
-        self.K                  = np.matrix(np.zeros((self.nDofs, self.nDofs)))
+        self.K                  = np.zeros((self.nDofs, self.nDofs))
 
         self.assembElem()
 
-        Nmat = np.array(np.zeros((self.npiles,self.nrVal)))
+        Nmat = np.zeros((self.npiles,self.nrVal))
 
         for i in range(self.nrVal):
             f = self.generateLoads(i)
@@ -342,19 +384,18 @@ class PileOptModel:
             self.nmax_single_pile[i] = round(0.001*np.max(Nmat[i,:]))
             self.nmin_single_pile[i] = round(0.001*np.min(Nmat[i,:]))
 
-        print("Konfiguration " + str(config) + ": " + str(self.nmax_single) + ", " + str(self.nmin_single))
+        print("Konfiguration " + str(selectedConfig) + ": " + str(self.nmax_single) + ", " + str(self.nmin_single))
 
 
     def checkCollision(self,bearing_try,incl_try,x1vec_q,y1vec_q,dirvec):
 
         prec = 1
-        step = max(abs(x1vec_q[1] - x1vec_q[0]),abs(y1vec_q[1] - y1vec_q[0]))
 
         for dir in dirvec:
             #if dir == 0:
             #    return False
 
-            z = dir*step*self.incl*0.5
+            z = dir*self.pile_dist*self.incl*0.5
 
             xy2vec_q = set()
 
@@ -376,8 +417,22 @@ class PileOptModel:
             
         return False
     
-    def genPileConfigs(self,colision,signal_get):
+    def genPileConfigs(self,colision,signal_get,prio):
         print("- Finding and filtering possible pile configurations...")
+
+        pid = win32api.GetCurrentProcessId()
+        handle = win32api.OpenProcess(win32con.PROCESS_ALL_ACCESS, True, pid)
+        if prio == 3:
+            print("Prio 3"); win32process.SetPriorityClass(handle, win32process.BELOW_NORMAL_PRIORITY_CLASS)
+        if prio == 2:
+            print("Prio 2"); win32process.SetPriorityClass(handle, win32process.NORMAL_PRIORITY_CLASS)
+        if prio == 1:
+            print("Prio 1"); win32process.SetPriorityClass(handle, win32process.HIGH_PRIORITY_CLASS)
+        if prio == 0:
+            print("Prio 0"); win32process.SetPriorityClass(handle, win32process.REALTIME_PRIORITY_CLASS)
+
+
+        self.running        = True
 
         self.signal = signal_get
 
@@ -440,9 +495,20 @@ class PileOptModel:
         # Generating possible configurations
         n = 0
         self.totConfigs = setnr*len(piledirmat)*len(pileinclmat)
+
+        print("Positional permutations:" + str(setnr))
+        print("Directionsal permutations: " + str(len(piledirmat)))
+        print("Inclinational permutations: " + str(len(pileinclmat)))
         signalstep = int(self.totConfigs)/100
         ntemp = 0
         for i in range(setnr):
+
+            if self.running != True:
+                return
+            
+            while self.pause == True:
+                time.sleep(0.1)
+
             x1vec_q = pilexvec[i]
             y1vec_q = pileyvec[i]
             set_try = setvec[i]
