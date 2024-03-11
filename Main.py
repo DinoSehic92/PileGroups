@@ -524,6 +524,7 @@ class MainWindow(QDialog):
 
 
 if __name__ == '__main__':
+    print("Pile")
     app = QApplication(sys.argv)
     app.setStyleSheet(qdarktheme.load_stylesheet("dark"))
 
