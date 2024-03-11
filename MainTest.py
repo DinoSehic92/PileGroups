@@ -4,7 +4,7 @@ import time
 
 from PySide6.QtCore import Signal, QObject
 
-#from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue
 import threading
 
 pg_data = pyfiles.PileOptModel()
