@@ -617,7 +617,7 @@ class MainWindow(QDialog):
         layout.addWidget(QLabel("Pile inclination"),2,0);           self.incl = QLineEdit();            layout.addWidget(self.incl,2,1)
 
         layout.addWidget(QLabel("Single dir piles"),0,2);           self.sdirPiles = QLineEdit();       layout.addWidget(self.sdirPiles,0,3)
-        layout.addWidget(QLabel("Pile lenght"),1,2);                self.plen = QLineEdit();            layout.addWidget(self.plen,1,3)
+        layout.addWidget(QLabel("Pile length"),1,2);                self.plen = QLineEdit();            layout.addWidget(self.plen,1,3)
 
         layout.addWidget(QLabel("Max pile reaction"),0,4);          self.nMax = QLineEdit();            layout.addWidget(self.nMax,0,5)
         layout.addWidget(QLabel("Min pile reaction"),1,4);          self.nMin = QLineEdit();            layout.addWidget(self.nMin,1,5)
