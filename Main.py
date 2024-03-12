@@ -35,6 +35,7 @@ class MainWindow(QDialog):
 
 
     def write_input(self):
+        #Test
         #self.nPiles.setText("8")
         #self.nVertPiles.setText("0")
         #self.incl.setText("4")
