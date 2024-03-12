@@ -78,7 +78,7 @@ class MainWindow(QDialog):
         self.w_slab.setText("4")
         self.pile_dist.setText("0.8")
 
-        self.path.setText("C:\\Utvecklingsprojekt\\PileGroups\\Underlag\Loadcases4.xlsx")
+        self.path.setText("C:\\Utvecklingsprojekt\\PileGroups\\Underlag\Loadcases.xlsx")
 
         xvec        = [1.6, 1.6, 1.6, 1.6, 1.6, 0.8, 0.8, 0.8, 0.8, 0.8, "", "", "", "", "", "", "", "", "", ""]
         yvec        = [4.6, 3.8, 3.0, 2.2, 1.4, 4.6, 3.8, 3.0, 2.2, 1.4, "", "", "", "", "", "", "", "", "", ""]
@@ -524,27 +524,47 @@ class MainWindow(QDialog):
             plt = self.view_area.plotItem.plot([0,0],[paxis_y[0],paxis_y[1]], pen='gray', color='gray')
         
     def draft_pplace(self):
+            
+            self.status.setText('Drafting possible pile positions!')
+            self.read_input()
+            self.view_area.plotItem.clear()
+
+            valrange=max(np.max(self.xvec),np.max(self.yvec))
+            self.view_area.setXRange(-valrange,valrange, padding=0.1)
+            self.view_area.setYRange(-valrange,valrange, padding=0.1)
+            self.view_area.setBackground(None)
+
+            #self.xvec = [float(i) for i in range(1,int(self.slab_h)+1)]
+            #self.yvec = [float(i) for i in range(1,int(self.slab_w)+1)]
+            self.xvec = []
+            self.yvec = []
         
-        self.status.setText('Drafting possible pile positions!')
-        self.read_input()
-        self.view_area.plotItem.clear()
+            for i in range (1,int(self.slab_h)+1):
+                if i > int(self.slab_h)//2:
+                    self.yvec.append(i - int(self.slab_h)//2)
+                else:
+                    self.yvec.append(i)
+            for i in range (1,int(self.slab_h)+1):
+                if i > int(self.slab_h)//2:
+                    self.xvec.append(int(self.slab_w)//2 -1)
+                else:
+                    self.xvec.append(int(self.slab_w)//2)
 
-        valrange=max(np.max(self.xvec),np.max(self.yvec))
-        self.view_area.setXRange(-valrange,valrange, padding=0.1)
-        self.view_area.setYRange(-valrange,valrange, padding=0.1)
-        self.view_area.setBackground(None)
+            print(self.xvec)
+            print(self.yvec)
 
-        h = self.slab_h*0.5; y_draft = [h,h,-h,-h,h]
-        w = self.slab_w*0.5; x_draft = [w,-w,-w,w,w]
+            h = self.slab_h*0.5; y_draft = [h,h,-h,-h,h]
+            w = self.slab_w*0.5; x_draft = [w,-w,-w,w,w]
 
-        plt = self.view_area.plotItem.plot(x_draft,y_draft,pen=self.plotpen,symbol=None, color=self.plotpen)
-        plt = self.view_area.plotItem.plot(self.xvec,self.yvec,pen=None,symbol="x", symbolPen=self.plotpen, color=self.plotpen, symbolBrush=self.plotpen)
+            plt = self.view_area.plotItem.plot(x_draft,y_draft,pen=self.plotpen,symbol=None, color=self.plotpen)
+            plt = self.view_area.plotItem.plot(self.xvec,self.yvec,pen=None,symbol="x", symbolPen=self.plotpen, color=self.plotpen, symbolBrush=self.plotpen)
 
-        paxis_y = [-(self.slab_h*0.5+0.5), (self.slab_h*0.5+0.5)]
-        paxis_x = [-(self.slab_w*0.5+0.5), (self.slab_w*0.5+0.5)]
+            paxis_y = [-(self.slab_h*0.5+0.5), (self.slab_h*0.5+0.5)]
+            paxis_x = [-(self.slab_w*0.5+0.5), (self.slab_w*0.5+0.5)]
+            
 
-        plt = self.view_area.plotItem.plot([paxis_x[0],paxis_x[1]],[0,0], pen='gray', color='gray')
-        plt = self.view_area.plotItem.plot([0,0],[paxis_y[0],paxis_y[1]], pen='gray', color='gray')
+            plt = self.view_area.plotItem.plot([paxis_x[0],paxis_x[1]],[0,0], pen='gray', color='gray')
+            plt = self.view_area.plotItem.plot([0,0],[paxis_y[0],paxis_y[1]], pen='gray', color='gray')
 
     def swich_color_mode(self):
         self.dark_mode = not self.dark_mode
