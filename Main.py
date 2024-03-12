@@ -118,6 +118,8 @@ class MainWindow(QDialog):
         
         self.nr_lcs.setText(str(pg_data.nrVal))
 
+        self.method = self.methodCombo.currentIndex()
+
 
     def read_pptable(self):
         self.xvec        = []
@@ -274,7 +276,7 @@ class MainWindow(QDialog):
 
     @Slot()
     def worker_infl(self):
-        pyfiles.PileOptModel.pileInfluenceRun(pg_data,self.signal,self.prio)
+        pyfiles.PileOptModel.pileInfluenceRun(pg_data,self.signal,self.prio,self.method)
 
     def pause_worker(self):
         if pg_data.running == True:
@@ -566,6 +568,8 @@ class MainWindow(QDialog):
         self.nr_lcs              = QLineEdit("-")
         self.configButton        = QPushButton("Config")                   ; self.configButton.clicked.connect(self.run_config)
         self.runButton           = QPushButton("Run")                      ; self.runButton.clicked.connect(self.run_infl)
+        self.methodLabel         = QLabel("Method")
+        self.methodCombo         = QComboBox()                             ; self.methodCombo.addItems(["0","1"]); self.methodCombo.setCurrentIndex(0)
         self.pauseButton         = QPushButton("Pause")                    ; self.pauseButton.clicked.connect(self.pause_worker)
         self.resumeButton        = QPushButton("Resume")                   ; self.resumeButton.clicked.connect(self.resume_worker)
         self.stopButton          = QPushButton("Stop")                     ; self.stopButton.clicked.connect(self.stop_worker)
@@ -582,6 +586,9 @@ class MainWindow(QDialog):
         layout.addWidget(self.nr_lcs)
         layout.addWidget(self.configButton)
         layout.addWidget(self.runButton)
+        layout.addWidget(self.methodLabel)
+        layout.addWidget(self.methodCombo)
+
         layout.addWidget(self.pauseButton)
         layout.addWidget(self.resumeButton)
         layout.addWidget(self.stopButton)

@@ -3,7 +3,7 @@ import win32api, win32con, win32process
 
 import pylightxl as xl
 
-from math import factorial
+from math import factorial, atan
 import time
 
 from calfem.core import beam3e
@@ -281,7 +281,7 @@ class PileOptModel:
 
                 iter = iter + 1
     
-    def pileInfluenceRun(self,signal_get,prio):
+    def pileInfluenceRun(self,signal_get,prio,method):
 
         pid = win32api.GetCurrentProcessId()
         handle = win32api.OpenProcess(win32con.PROCESS_ALL_ACCESS, True, pid)
@@ -319,29 +319,15 @@ class PileOptModel:
             process_store = configprogress
             
             self.pileExpand(config)
-            self.genBeams()
-            self.genPiles()  
-            
-            self.f                  = np.zeros((self.nDofs, 1))
-            self.bc                 = np.arange((6*self.npiles)+7, self.nDofs+1)
-            self.K                  = np.zeros((self.nDofs, self.nDofs))
 
-            self.assembElem()
-
-            Ninfl = np.zeros((self.npiles,6))
-
-            for i in range(6):
-                f = np.zeros((self.nDofs, 1))
-                f[i] = 1
-                a, r = self.analyseLoadcases(f)
-                Ninfl[:,i] = self.analyseResults(a)
+            self.influence_solver(method) # Combined the influence solver to its own method
 
             Nvek = np.zeros((self.npiles,self.nrVal))
 
             for i in range(self.nrVal):
                 for j in range(self.npiles):
 
-                    Nvek[j,i] = Ninfl[j,:] @ self.lc[i,:]
+                    Nvek[j,i] = self.Ninfl[j,:] @ self.lc[i,:]
         
             for i in range(self.npiles):
                 self.nMaxPileConfig[config,i] = np.max(Nvek[i])
@@ -352,6 +338,87 @@ class PileOptModel:
 
         if self.running == True:
             self.signal.completed.emit()
+
+
+    def influence_solver(self,method):
+
+        # Generates an influence matrix 
+
+        self.Ninfl = np.zeros((self.npiles,6))
+
+        if method == 0: # FE Method 
+
+            self.genBeams()
+            self.genPiles()  
+            
+            self.f                  = np.zeros((self.nDofs, 1))
+            self.bc                 = np.arange((6*self.npiles)+7, self.nDofs+1)
+            self.K                  = np.zeros((self.nDofs, self.nDofs))
+
+            self.assembElem()
+
+            for i in range(6):
+                f = np.zeros((self.nDofs, 1))
+                f[i] = 1
+                a, r = self.analyseLoadcases(f)
+                self.Ninfl[:,i] = self.analyseResults(a)
+
+        if method == 1: # Simplified PKR54 method 
+            
+            unitloads = [1, -1, -1, 1, -1, -1]
+            
+            for m in range(6):
+                fq          = np.zeros((6,1))
+                fq[m]       = unitloads[m]
+
+                k33       = self.ep2[0]*self.ep2[1]/self.pLen
+
+                Kq          = np.array([[0, 0, 0],
+                                        [0, 0, 0],
+                                        [0, 0, k33]])
+
+                Sqprim      = np.zeros((6))
+                Aq          = np.zeros((3,3))
+                Dq          = np.zeros((6,3,self.npiles))
+
+                for i in range(self.npiles):
+
+                    z1 = self.x1vec[i]
+                    z2 = self.y1vec[i]
+
+                    alpha = np.radians(self.bearing[i])
+                    beta = atan(1/self.incl[i])
+
+                    cq =        np.array([  [1, 0, 0],
+                                            [0, 1, 0],
+                                            [0, 0, 1],
+                                            [0, 0, z2],
+                                            [0, 0, -z1],
+                                            [-z2, z1, 0]])
+                    
+                    Aq[0,0]         = np.cos(beta) * np.cos(alpha)
+                    Aq[0,1]         = -np.sin(alpha)
+                    Aq[0,2]         = np.sin(beta) * np.cos(alpha)
+                    Aq[1,0]         = np.cos(beta) * np.sin(alpha)
+                    Aq[1,1]         = np.cos(alpha)
+                    Aq[1,2]         = np.sin(beta) * np.sin(alpha)
+                    Aq[2,0]         = -np.sin(beta)
+                    Aq[2,1]         = 0
+                    Aq[2,2]         = np.cos(beta)
+
+                    Dq[:,:,i]       = cq @ Aq
+                    Sqprim          = np.add(Sqprim, Dq[:,:,i] @ Kq @ Dq[:,:,i].T)
+
+                U           = np.linalg.inv(Sqprim) @ fq
+                Fstore      = np.zeros((self.npiles))
+
+                for i in range(self.npiles):
+
+                    xq          = Dq[:,:,i].T @ U
+                    Fq          = Kq @ xq
+
+                    self.Ninfl[i,m] = -Fq[2][0]
+
 
     def SingleRun(self,selectedConfig):
 
