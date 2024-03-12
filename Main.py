@@ -119,8 +119,6 @@ class MainWindow(QDialog):
 
         pyfiles.PileOptModel.defineSettings(pg_data,self.xvec,self.yvec,npiles,nvert,singdir,plen,incl,path,self.NmaxLim,self.NminLim,self.pile_d)
         
-        self.nr_lcs.setText(str(pg_data.nrVal))
-
         self.method = self.methodCombo.currentIndex()
 
 
@@ -314,7 +312,6 @@ class MainWindow(QDialog):
         self.resumeButton.setDisabled(True)  
         self.stopButton.setDisabled(True) 
         self.singleButton.setDisabled(False) 
-        self.colorButton.setDisabled(False) 
         self.write_button.setDisabled(False)
         self.draft_pplace_btn.setDisabled(False)
         self.check_pplace_btn.setDisabled(False)
@@ -327,7 +324,6 @@ class MainWindow(QDialog):
         self.resumeButton.setDisabled(True)  
         self.stopButton.setDisabled(False) 
         self.singleButton.setDisabled(True) 
-        self.colorButton.setDisabled(False) 
         self.write_button.setDisabled(True)
         self.draft_pplace_btn.setDisabled(True)
         self.check_pplace_btn.setDisabled(True)
@@ -340,7 +336,6 @@ class MainWindow(QDialog):
         self.resumeButton.setDisabled(False)  
         self.stopButton.setDisabled(False) 
         self.singleButton.setDisabled(True) 
-        self.colorButton.setDisabled(False) 
         self.write_button.setDisabled(False)
         self.draft_pplace_btn.setDisabled(True)
         self.check_pplace_btn.setDisabled(True)
@@ -488,6 +483,24 @@ class MainWindow(QDialog):
         except:
             self.status.setText('No Configs to write...')
 
+    def loadcase_analysis(self):
+        self.read_input()
+        self.nr_lcs.setText(str(pg_data.nrVal))
+
+        val = min(pg_data.lc[:,2])/pg_data.npiles
+        self.pileEstimate.setText(str(round(val)))
+
+        self.fxpos.setText(str(round(max(pg_data.lc[:,0]))))
+        self.fxneg.setText(str(round(min(pg_data.lc[:,0]))))
+        self.fypos.setText(str(round(max(pg_data.lc[:,1]))))
+        self.fyneg.setText(str(round(min(pg_data.lc[:,1]))))
+
+        self.mxpos.setText(str(round(max(pg_data.lc[:,3]))))
+        self.mxneg.setText(str(round(min(pg_data.lc[:,3]))))
+        self.mypos.setText(str(round(max(pg_data.lc[:,4]))))
+        self.myneg.setText(str(round(min(pg_data.lc[:,4]))))
+
+
 
     def plot_config(self,nr):
         pyfiles.PileOptModel.pileExpand(pg_data,nr) 
@@ -549,12 +562,14 @@ class MainWindow(QDialog):
         plt = self.view_area.plotItem.plot([0,0],[paxis_y[0],paxis_y[1]], pen='gray', color='gray')
 
     def swich_color_mode(self):
-        self.dark_mode = not self.dark_mode
-        app = QApplication.instance()
-        if self.dark_mode == True:
+        
+        colormode = self.themeColor.currentIndex()
+        if colormode == 0: 
+            self.dark_mode == True
             app.setStyleSheet(qdarktheme.load_stylesheet("dark"))
             self.plotpen = 'white'
-        else:
+        if colormode == 1:
+            self.dark_mode == False
             app.setStyleSheet(qdarktheme.load_stylesheet("light"))
             self.plotpen = 'black'
         
@@ -563,56 +578,75 @@ class MainWindow(QDialog):
         
 
     def create_input_area(self):
-        self.input_area     = QGroupBox()
+        self.input_area     = QHBoxLayout()
 
-        line_label               = QLabel("Path")
-        self.path                = QLineEdit()
-        nrLc_label               = QLabel("Nr LC: ")
-        self.nr_lcs              = QLineEdit("-")
+        area1 = QGroupBox("LC analysis")
+        area1.setMaximumWidth(400); area1.setMinimumHeight(100)
+        layout1 = QGridLayout()
+
+        layout1.addWidget(QLabel("Nr LC"),0,0);         self.nr_lcs         = QLabel("-");     layout1.addWidget(self.nr_lcs,0,1);          self.nr_lcs.setMinimumWidth(40)
+        layout1.addWidget(QLabel("Fz/n"),1,0);          self.pileEstimate   = QLabel("-");     layout1.addWidget(self.pileEstimate,1,1);    self.pileEstimate.setMinimumWidth(40)
+
+        layout1.addWidget(QLabel("Fx+"),0,2);           self.fxpos          = QLabel("-");     layout1.addWidget(self.fxpos,0,3);           self.fxpos.setMinimumWidth(40)
+        layout1.addWidget(QLabel("Fx-"),1,2);           self.fxneg          = QLabel("-");     layout1.addWidget(self.fxneg,1,3);           self.fxneg.setMinimumWidth(40)
+
+        layout1.addWidget(QLabel("Fy+"),0,4);           self.fypos          = QLabel("-");     layout1.addWidget(self.fypos,0,5);           self.fypos.setMinimumWidth(40)
+        layout1.addWidget(QLabel("Fy-"),1,4);           self.fyneg          = QLabel("-");     layout1.addWidget(self.fyneg,1,5);           self.fyneg.setMinimumWidth(40)
+    
+        layout1.addWidget(QLabel("Mx+"),0,6);           self.mxpos          = QLabel("-");     layout1.addWidget(self.mxpos,0,7);           self.mxpos.setMinimumWidth(40)
+        layout1.addWidget(QLabel("Mx-"),1,6);           self.mxneg          = QLabel("-");     layout1.addWidget(self.mxneg,1,7);           self.mxneg.setMinimumWidth(40)
+    
+        layout1.addWidget(QLabel("My+"),0,8);           self.mypos          = QLabel("-");     layout1.addWidget(self.mypos,0,9);           self.mypos.setMinimumWidth(40)
+        layout1.addWidget(QLabel("My-"),1,8);           self.myneg          = QLabel("-");     layout1.addWidget(self.myneg,1,9);           self.myneg.setMinimumWidth(40)
+
+        area2 = QGroupBox("Run")
+
+        layout2     = QVBoxLayout()
+
+        buttonRow   = QHBoxLayout()
+        self.lcButton            = QPushButton("LC Analysis")              ; self.lcButton.clicked.connect(self.loadcase_analysis)
         self.configButton        = QPushButton("Config")                   ; self.configButton.clicked.connect(self.run_config)
         self.runButton           = QPushButton("Run")                      ; self.runButton.clicked.connect(self.run_infl)
-        self.methodLabel         = QLabel("Method")
-        self.methodCombo         = QComboBox()                             ; self.methodCombo.addItems(["0","1"]); self.methodCombo.setCurrentIndex(0)
         self.pauseButton         = QPushButton("Pause")                    ; self.pauseButton.clicked.connect(self.pause_worker)
         self.resumeButton        = QPushButton("Resume")                   ; self.resumeButton.clicked.connect(self.resume_worker)
         self.stopButton          = QPushButton("Stop")                     ; self.stopButton.clicked.connect(self.stop_worker)
         self.singleButton        = QPushButton("Single Run")               ; self.singleButton.clicked.connect(self.run_single)
-        self.colorButton         = QPushButton("Colormode")                ; self.colorButton.clicked.connect(self.swich_color_mode)
-        self.prioLabel           = QLabel("Priority")
-        self.prioCombo           = QComboBox()                             ; self.prioCombo.addItems(["0","1","2","3"]); self.prioCombo.setCurrentIndex(2)
 
-        layout                   = QHBoxLayout()
 
-        layout.addWidget(line_label)
-        layout.addWidget(self.path,1)
-        layout.addWidget(nrLc_label)
-        layout.addWidget(self.nr_lcs)
-        layout.addWidget(self.configButton)
-        layout.addWidget(self.runButton)
-        layout.addWidget(self.methodLabel)
-        layout.addWidget(self.methodCombo)
+        buttonRow.addWidget(self.lcButton)
+        buttonRow.addWidget(self.configButton)
+        buttonRow.addWidget(self.runButton)
 
-        layout.addWidget(self.pauseButton)
-        layout.addWidget(self.resumeButton)
-        layout.addWidget(self.stopButton)
-        layout.addWidget(self.singleButton)
-        layout.addWidget(self.colorButton)
-        layout.addWidget(self.prioLabel)
-        layout.addWidget(self.prioCombo)
+        buttonRow.addWidget(self.pauseButton)
+        buttonRow.addWidget(self.resumeButton)
+        buttonRow.addWidget(self.stopButton)
+        buttonRow.addWidget(self.singleButton)
 
-        self.configButton.setMinimumHeight(25);      self.configButton.setMinimumWidth(70)
-        self.runButton.setMinimumHeight(25);         self.runButton.setMinimumWidth(70)
-        self.pauseButton.setMinimumHeight(25);       self.pauseButton.setMinimumWidth(70)
-        self.stopButton.setMinimumHeight(25);        self.stopButton.setMinimumWidth(70)
-        self.resumeButton.setMinimumHeight(25);      self.resumeButton.setMinimumWidth(70)
-        self.nr_lcs.setMinimumHeight(25);            self.nr_lcs.setMaximumWidth(35)
+        pathRow     = QHBoxLayout()
+        
+        line_label               = QLabel("Path")
+        self.path                = QLineEdit()
 
-        self.input_area.setLayout(layout)
+        pathRow.addWidget(line_label)
+        pathRow.addWidget(self.path,1)
+
+        layout2.addLayout(buttonRow)
+        layout2.addLayout(pathRow)
+
+        area1.setLayout(layout1)
+        area2.setLayout(layout2)
+
+
+
+        self.input_area.addWidget(area2)
+        self.input_area.addWidget(area1)
 
     def create_settings_area(self):
         self.settings_area = QHBoxLayout()
 
-        layout1 = QGridLayout("Pile input")
+        area1   = QGroupBox("Pile input")
+        area1.setMaximumWidth(400)
+        layout1 = QGridLayout()
 
         layout1.addWidget(QLabel("Nr of piles"),0,0);                self.nPiles = QSpinBox();           layout1.addWidget(self.nPiles,0,1);          
         layout1.addWidget(QLabel("Nr vertical"),1,0);                self.nVertPiles = QSpinBox();       layout1.addWidget(self.nVertPiles,1,1)
@@ -621,42 +655,58 @@ class MainWindow(QDialog):
         layout1.addWidget(QLabel("Nr single dir"),0,2);              self.sdirPiles = QSpinBox();        layout1.addWidget(self.sdirPiles,0,3)
         layout1.addWidget(QLabel("Pile length"),1,2);                self.plen = QSpinBox();             layout1.addWidget(self.plen,1,3)
 
-        layout1.addWidget(QLabel("Collision UP"),0,4);               self.col_up = QSpinBox();           layout1.addWidget(self.col_up,0,5)
-        layout1.addWidget(QLabel("Collision DOWN"),1,4);             self.col_down = QSpinBox();         layout1.addWidget(self.col_down,1,5)
+        layout1.addWidget(QLabel("Collision up"),0,4);               self.col_up = QSpinBox();           layout1.addWidget(self.col_up,0,5)
+        layout1.addWidget(QLabel("Collision down"),1,4);             self.col_down = QSpinBox();         layout1.addWidget(self.col_down,1,5)
         layout1.addWidget(QLabel("Apply check"),2,4);                self.coli_box = QCheckBox();        layout1.addWidget(self.coli_box,2,5)
 
-        layout2 = QGridLayout("Reaction filter")
+        area2   = QGroupBox("Slab and pilegrid input")
+        layout2 = QGridLayout()
 
-        layout1.addWidget(QLabel("Max reaction"),0,6);               self.nMax = QLineEdit();            layout1.addWidget(self.nMax,0,7)
-        layout1.addWidget(QLabel("Min reaction"),1,6);               self.nMin = QLineEdit();            layout1.addWidget(self.nMin,1,7)
-        layout1.addWidget(QLabel("Apply filter"),2,6);               self.nFilter = QCheckBox();         layout1.addWidget(self.nFilter,2,7)
+        layout2.addWidget(QLabel("Height"),0,0);                    self.h_slab = QLineEdit("-");       layout2.addWidget(self.h_slab,0,1)      ;   self.h_slab.setMaximumWidth(40)
+        layout2.addWidget(QLabel("Width"),1,0);                     self.w_slab = QLineEdit("-");       layout2.addWidget(self.w_slab,1,1)      ;   self.w_slab.setMaximumWidth(40)
+        layout2.addWidget(QLabel("Edge dist"),2,0);                 self.edge_d = QLineEdit("-");       layout2.addWidget(self.edge_d,2,1)      ;   self.edge_d.setMaximumWidth(40)
+
+        layout2.addWidget(QLabel("Spacing"),0,3);                   self.pile_dist = QLineEdit("-");    layout2.addWidget(self.pile_dist,0,4)   ;   self.pile_dist.setMaximumWidth(40)
+        layout2.addWidget(QLabel("Rows"),1,3);                      self.p_rows = QLineEdit("-");       layout2.addWidget(self.p_rows,1,4)      ;   self.p_rows.setMaximumWidth(40)
+        layout2.addWidget(QLabel("Columns"),2,3);                   self.p_columns = QLineEdit("-");    layout2.addWidget(self.p_columns,2,4)   ;   self.p_columns.setMaximumWidth(40)
+
+        area3   = QGroupBox("Reaction filter")
+        layout3 = QGridLayout()
+
+        layout3.addWidget(QLabel("Max"),0,0);                       self.nMax = QLineEdit();            layout3.addWidget(self.nMax,0,1)        ;    self.nMax.setMaximumWidth(60)
+        layout3.addWidget(QLabel("Min"),1,0);                       self.nMin = QLineEdit();            layout3.addWidget(self.nMin,1,1)        ;    self.nMin.setMaximumWidth(60)
+        layout3.addWidget(QLabel("Apply"),2,0);                     self.nFilter = QCheckBox();         layout3.addWidget(self.nFilter,2,1) 
         
-        layout3 = QGridLayout("Configurations")
+        area4   = QGroupBox("Configurations")
+        layout4 = QGridLayout()
 
-        layout3.addWidget(QLabel("Saved Configs"),0,8);              self.tot_conf = QLineEdit("-");     layout3.addWidget(self.tot_conf,0,9)
-        layout3.addWidget(QLabel("Possible configs"),1,8);           self.pos_conf = QLineEdit("-");     layout3.addWidget(self.pos_conf,1,9)
-        layout3.addWidget(QLabel("Solved configs"),2,8);             self.fil_conf = QLineEdit("-");     layout3.addWidget(self.fil_conf,2,9)
+        layout4.addWidget(QLabel("Possible"),0,0);                  self.pos_conf = QLineEdit("-");     layout4.addWidget(self.pos_conf,0,1)
+        layout4.addWidget(QLabel("Saved"),1,0);                     self.tot_conf = QLineEdit("-");     layout4.addWidget(self.tot_conf,1,1)
+        layout4.addWidget(QLabel("Solved"),2,0);                    self.fil_conf = QLineEdit("-");     layout4.addWidget(self.fil_conf,2,1)
 
-        layout4= QGridLayout("Slab input")
+        area5   = QGroupBox("Settings")
+        layout5 = QGridLayout()                
 
-        layout4.addWidget(QLabel("Pile Dist"),0,10);                 self.pile_dist = QLineEdit("-");    layout4.addWidget(self.pile_dist,0,11)
-        layout4.addWidget(QLabel("Height"),1,10);                    self.h_slab = QLineEdit("-");       layout4.addWidget(self.h_slab,1,11)
-        layout4.addWidget(QLabel("Width"),2,10);                     self.w_slab = QLineEdit("-");       layout4.addWidget(self.w_slab,2,11)
+        layout5.addWidget(QLabel("Solver"),0,0);                    self.methodCombo = QComboBox();     layout5.addWidget(self.methodCombo,0,1)
+        layout5.addWidget(QLabel("Priority"),1,0);                  self.prioCombo = QComboBox();       layout5.addWidget(self.prioCombo,1,1)
+        layout5.addWidget(QLabel("Theme"),2,0);                     self.themeColor = QComboBox();      layout5.addWidget(self.themeColor,2,1)
 
+        self.methodCombo.addItems(["FEM","PK54"]);                  self.methodCombo.setCurrentIndex(0)
+        self.prioCombo.addItems(["0","1","2","3"]);                 self.prioCombo.setCurrentIndex(2) 
 
+        self.themeColor.addItems(["Dark", "Light"]);                self.themeColor.setCurrentIndex(0)
+        self.themeColor.activated.connect(self.swich_color_mode);   
 
-        self.pos_conf.setMinimumWidth(60)
-        self.nMax.setMinimumWidth(60)
 
         self.pos_conf.setReadOnly(True)
         self.tot_conf.setReadOnly(True)
         self.fil_conf.setReadOnly(True)
-        self.nr_lcs.setReadOnly(True)
 
-        self.settings_area.addLayout(layout1)
-        self.settings_area.addLayout(layout2)
-        self.settings_area.addLayout(layout3)
-        self.settings_area.addLayout(layout4)
+        area1.setLayout(layout1);   self.settings_area.addWidget(area1)
+        area2.setLayout(layout2);   self.settings_area.addWidget(area2)
+        area3.setLayout(layout3);   self.settings_area.addWidget(area3)
+        area4.setLayout(layout4);   self.settings_area.addWidget(area4,1)
+        area5.setLayout(layout5);   self.settings_area.addWidget(area5,1)
 
 
     def create_result_area(self):
@@ -760,7 +810,7 @@ class MainWindow(QDialog):
         self.runningTIme        = QLineEdit("-");   self.runningTIme.setReadOnly(True);      self.runningTIme.setMaximumWidth(50)
         self.estimTime          = QLineEdit("-");   self.estimTime.setReadOnly(True);        self.estimTime.setMaximumWidth(50)
         self.status             = QLineEdit("");   self.status.setReadOnly(True);           self.status.setMaximumWidth(200);      self.status.setStyleSheet("color: orange; font: italic")#; self.status.setStyleSheet("font: italic")
-        self.progress_area      = QGroupBox("")
+        self.progress_area      = QGroupBox("Progress")
         progress_layout         = QHBoxLayout()
         self.progress_bar       = QProgressBar()
 
@@ -783,7 +833,7 @@ class MainWindow(QDialog):
         self.create_progress_area()
 
         main_layout = QVBoxLayout()
-        main_layout.addWidget(self.input_area)
+        main_layout.addLayout(self.input_area)
         main_layout.addLayout(self.settings_area)
         main_layout.addWidget(self.result_area,1)
         main_layout.addWidget(self.progress_area)
