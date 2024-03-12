@@ -6,7 +6,9 @@ import win32api,win32con,win32process
 import qdarktheme
 import pyqtgraph as pg
 
-from PySide6.QtWidgets import QDialog,QApplication,QVBoxLayout,QGroupBox,QLabel,QLineEdit,QPushButton,QHBoxLayout,QGridLayout,QListWidget,QTableWidget,QHeaderView,QProgressBar,QTableWidgetItem,QCheckBox, QComboBox
+from PySide6.QtWidgets import ( QDialog,QApplication,QVBoxLayout,QGroupBox,QLabel,QLineEdit,QPushButton,QHBoxLayout,QGridLayout,
+                                QListWidget,QTableWidget,QHeaderView,QProgressBar,QTableWidgetItem,QCheckBox, QComboBox, QSpinBox)
+
 from PySide6.QtCore import Qt, QThreadPool, Signal, Slot, QObject, QTimer
 
 pg_data = pyfiles.PileOptModel()
@@ -60,19 +62,19 @@ class MainWindow(QDialog):
         #yvec        = [2, 3, 4, 2, 3, 4, 2, 3, 4, 1, 1, 1, "", "", "", "", "", "", "", ""]
 
 
-        self.nPiles.setText("6")
-        self.nVertPiles.setText("0")
-        self.incl.setText("4")
-        self.sdirPiles.setText("2")
-        self.plen.setText("7")
+        self.nPiles.setValue(6)
+        self.nVertPiles.setValue(0)
+        self.incl.setValue(4)
+        self.sdirPiles.setValue(2)
+        self.plen.setValue(7)
+
+        self.col_up.setValue(1)
+        self.col_down.setValue(4)
+        self.coli_box.setChecked(True)
 
         self.nMax.setText("25")
         self.nMin.setText("-1000")
         self.nFilter.setChecked(False)
-
-        self.col_up.setText("1")
-        self.col_down.setText("4")
-        self.coli_box.setChecked(True)
 
         self.h_slab.setText("10")
         self.w_slab.setText("4")
@@ -608,32 +610,40 @@ class MainWindow(QDialog):
         self.input_area.setLayout(layout)
 
     def create_settings_area(self):
-        self.settings_area = QGroupBox()
+        self.settings_area = QHBoxLayout()
 
-        layout = QGridLayout()
+        layout1 = QGridLayout("Pile input")
 
-        layout.addWidget(QLabel("Number of piles"),0,0);            self.nPiles = QLineEdit();          layout.addWidget(self.nPiles,0,1)
-        layout.addWidget(QLabel("Vertical Piles"),1,0);             self.nVertPiles = QLineEdit();      layout.addWidget(self.nVertPiles,1,1)
-        layout.addWidget(QLabel("Pile inclination"),2,0);           self.incl = QLineEdit();            layout.addWidget(self.incl,2,1)
+        layout1.addWidget(QLabel("Nr of piles"),0,0);                self.nPiles = QSpinBox();           layout1.addWidget(self.nPiles,0,1);          
+        layout1.addWidget(QLabel("Nr vertical"),1,0);                self.nVertPiles = QSpinBox();       layout1.addWidget(self.nVertPiles,1,1)
+        layout1.addWidget(QLabel("Inclination"),2,0);                self.incl = QSpinBox();             layout1.addWidget(self.incl,2,1)
 
-        layout.addWidget(QLabel("Single dir piles"),0,2);           self.sdirPiles = QLineEdit();       layout.addWidget(self.sdirPiles,0,3)
-        layout.addWidget(QLabel("Pile length"),1,2);                self.plen = QLineEdit();            layout.addWidget(self.plen,1,3)
+        layout1.addWidget(QLabel("Nr single dir"),0,2);              self.sdirPiles = QSpinBox();        layout1.addWidget(self.sdirPiles,0,3)
+        layout1.addWidget(QLabel("Pile length"),1,2);                self.plen = QSpinBox();             layout1.addWidget(self.plen,1,3)
 
-        layout.addWidget(QLabel("Max pile reaction"),0,4);          self.nMax = QLineEdit();            layout.addWidget(self.nMax,0,5)
-        layout.addWidget(QLabel("Min pile reaction"),1,4);          self.nMin = QLineEdit();            layout.addWidget(self.nMin,1,5)
-        layout.addWidget(QLabel("Apply reaction filter"),2,4);      self.nFilter = QCheckBox();         layout.addWidget(self.nFilter,2,5)
+        layout1.addWidget(QLabel("Collision UP"),0,4);               self.col_up = QSpinBox();           layout1.addWidget(self.col_up,0,5)
+        layout1.addWidget(QLabel("Collision DOWN"),1,4);             self.col_down = QSpinBox();         layout1.addWidget(self.col_down,1,5)
+        layout1.addWidget(QLabel("Apply check"),2,4);                self.coli_box = QCheckBox();        layout1.addWidget(self.coli_box,2,5)
 
-        layout.addWidget(QLabel("Collision check up"),0,6);         self.col_up = QLineEdit();          layout.addWidget(self.col_up,0,7)
-        layout.addWidget(QLabel("Collision check down"),1,6);       self.col_down = QLineEdit();        layout.addWidget(self.col_down,1,7)
-        layout.addWidget(QLabel("Apply colision check"),2,6);       self.coli_box = QCheckBox();        layout.addWidget(self.coli_box,2,7)
+        layout2 = QGridLayout("Reaction filter")
 
-        layout.addWidget(QLabel("Saved Configs"),0,8);              self.tot_conf = QLineEdit("-");     layout.addWidget(self.tot_conf,0,9)
-        layout.addWidget(QLabel("Possible configs"),1,8);           self.pos_conf = QLineEdit("-");     layout.addWidget(self.pos_conf,1,9)
-        layout.addWidget(QLabel("Solved configs"),2,8);             self.fil_conf = QLineEdit("-");     layout.addWidget(self.fil_conf,2,9)
+        layout1.addWidget(QLabel("Max reaction"),0,6);               self.nMax = QLineEdit();            layout1.addWidget(self.nMax,0,7)
+        layout1.addWidget(QLabel("Min reaction"),1,6);               self.nMin = QLineEdit();            layout1.addWidget(self.nMin,1,7)
+        layout1.addWidget(QLabel("Apply filter"),2,6);               self.nFilter = QCheckBox();         layout1.addWidget(self.nFilter,2,7)
+        
+        layout3 = QGridLayout("Configurations")
 
-        layout.addWidget(QLabel("Pile Dist"),0,10);                 self.pile_dist = QLineEdit("-");    layout.addWidget(self.pile_dist,0,11)
-        layout.addWidget(QLabel("Height"),1,10);                    self.h_slab = QLineEdit("-");       layout.addWidget(self.h_slab,1,11)
-        layout.addWidget(QLabel("Width"),2,10);                     self.w_slab = QLineEdit("-");       layout.addWidget(self.w_slab,2,11)
+        layout3.addWidget(QLabel("Saved Configs"),0,8);              self.tot_conf = QLineEdit("-");     layout3.addWidget(self.tot_conf,0,9)
+        layout3.addWidget(QLabel("Possible configs"),1,8);           self.pos_conf = QLineEdit("-");     layout3.addWidget(self.pos_conf,1,9)
+        layout3.addWidget(QLabel("Solved configs"),2,8);             self.fil_conf = QLineEdit("-");     layout3.addWidget(self.fil_conf,2,9)
+
+        layout4= QGridLayout("Slab input")
+
+        layout4.addWidget(QLabel("Pile Dist"),0,10);                 self.pile_dist = QLineEdit("-");    layout4.addWidget(self.pile_dist,0,11)
+        layout4.addWidget(QLabel("Height"),1,10);                    self.h_slab = QLineEdit("-");       layout4.addWidget(self.h_slab,1,11)
+        layout4.addWidget(QLabel("Width"),2,10);                     self.w_slab = QLineEdit("-");       layout4.addWidget(self.w_slab,2,11)
+
+
 
         self.pos_conf.setMinimumWidth(60)
         self.nMax.setMinimumWidth(60)
@@ -643,12 +653,14 @@ class MainWindow(QDialog):
         self.fil_conf.setReadOnly(True)
         self.nr_lcs.setReadOnly(True)
 
-        self.settings_area.setLayout(layout)
+        self.settings_area.addLayout(layout1)
+        self.settings_area.addLayout(layout2)
+        self.settings_area.addLayout(layout3)
+        self.settings_area.addLayout(layout4)
 
 
     def create_result_area(self):
-        #qdarktheme.setup_theme(corner_shape="sharp") # förmodlign inte
-        #qdarktheme.setup_theme(custom_colors={"primary": "#D0BCFF"})
+
         self.result_area    = QGroupBox()
         result_layout       = QHBoxLayout()
 
@@ -772,7 +784,7 @@ class MainWindow(QDialog):
 
         main_layout = QVBoxLayout()
         main_layout.addWidget(self.input_area)
-        main_layout.addWidget(self.settings_area)
+        main_layout.addLayout(self.settings_area)
         main_layout.addWidget(self.result_area,1)
         main_layout.addWidget(self.progress_area)
 
