@@ -127,11 +127,11 @@ class PileOptModel:
 
     def readLoadCases(self):
         print("- Reading loadcases...")
-        # Läser av excelark och genererar matris med samtliga lastfall, kaliberar manuellt
+        # Läser av excelark och genererar matris med samtliga lastfall
         wb = xl.readxl(self.path)
         sheet = wb.ws(ws='Sheet1')
 
-        self.lc = np.zeros((999, 6))
+        self.lc_temp =[] # Temporary list for storage before knowing number of loadcases
 
         for i in range(999):
             FX = sheet.index(row=4+i, col=3)
@@ -142,13 +142,18 @@ class PileOptModel:
             MZ = sheet.index(row=4+i, col=8)
 
             if FX != '':
-                self.lc[i, :] = [FX, FY, FZ, MX, MY, MZ]
+                self.lc_temp.append([FX, FY, FZ, MX, MY, MZ])
             else:
                 break
-        
-        self.nrVal = i
-            
 
+        self.nrVal = i
+
+        # Consolidating list into a set size array
+        self.lc = np.zeros((self.nrVal,6))
+        for i in range(self.nrVal): 
+            self.lc[i,:] = self.lc_temp[i]
+
+        
     def generateLoads(self,nr):
 
         f = np.array(np.zeros((self.nDofs, 1)))
