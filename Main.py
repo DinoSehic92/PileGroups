@@ -33,10 +33,10 @@ class MainWindow(QDialog):
 
  
         self.drawUI()
-        self.write_input()   
+        self.set_default_input()   
 
 
-    def write_input(self):
+    #def write_input(self):
         #Test
         #self.nPiles.setText("8")
         #self.nVertPiles.setText("0")
@@ -62,11 +62,14 @@ class MainWindow(QDialog):
         #yvec        = [2, 3, 4, 2, 3, 4, 2, 3, 4, 1, 1, 1, "", "", "", "", "", "", "", ""]
 
 
+
+    def set_default_input(self):
+
         self.nPiles.setValue(6)
         self.nVertPiles.setValue(0)
-        self.incl.setValue(4)
+        self.incl_inp.setValue(4)
         self.sdirPiles.setValue(2)
-        self.plen.setValue(7)
+        self.plen_inp.setValue(7)
 
         self.col_up.setValue(1)
         self.col_down.setValue(4)
@@ -75,34 +78,41 @@ class MainWindow(QDialog):
         self.nMax.setText("25")
         self.nMin.setText("-1000")
 
-        self.h_slab.setText("10")
-        self.w_slab.setText("4")
-        self.pile_dist.setText("0.8")
+        self.slab_h_inp.setText("10")
+        self.slab_w_inp.setText("4")
+        self.edge_d_inp.setText("0.5")
 
-        self.path.setText("C:\\Utvecklingsprojekt\\PileGroups\\Underlag\Loadcases4.xlsx")
+        self.p_spacing_inp.setText("0.8")
+        self.p_columns_inp.setValue(2)
+        self.p_rows_inp.setValue(2)
 
-        #xvec        = [1.6, 1.6, 1.6, 1.6, 1.6, 0.8, 0.8, 0.8, 0.8, 0.8, "", "", "", "", "", "", "", "", "", ""]
-        #yvec        = [4.6, 3.8, 3.0, 2.2, 1.4, 4.6, 3.8, 3.0, 2.2, 1.4, "", "", "", "", "", "", "", "", "", ""]
+        self.path_inp.setText("C:\\Utvecklingsprojekt\\PileGroups\\Underlag\Loadcases4.xlsx")
 
+        self.show_plot      = False
 
-        #for i in range(len(xvec)):
-        #    xval = QTableWidgetItem(str(xvec[i])); xval.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-        #    yval = QTableWidgetItem(str(yvec[i])); yval.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-#
-        #    self.input_table.setItem(i,0,xval)
-        #    self.input_table.setItem(i,1,yval)
+        self.xvec           = [1.6, 1.6, 1.6, 1.6, 1.6, 0.8, 0.8, 0.8, 0.8, 0.8]
+        self.yvec           = [4.6, 3.8, 3.0, 2.2, 1.4, 4.6, 3.8, 3.0, 2.2, 1.4]
+
+        self.NmaxLim        =  99999999999999999
+        self.NminLim        = -99999999999999999
+
 
     def read_input(self):
 
         npiles          = int(self.nPiles.text())
         nvert           = int(self.nVertPiles.text())
         singdir         = int(self.sdirPiles.text())
-        plen            = int(self.plen.text())
-        incl            = int(self.incl.text())
-        path            = str(self.path.text())
-        self.slab_h     = float(self.h_slab.text())
-        self.slab_w     = float(self.w_slab.text())
-        self.pile_d     = float(self.pile_dist.text())
+        plen            = int(self.plen_inp.text())
+        incl            = int(self.incl_inp.text())
+        path            = str(self.path_inp.text())
+
+        self.slab_h     = float(self.slab_h_inp.text())
+        self.slab_w     = float(self.slab_w_inp.text())
+        self.edge_d     = float(self.edge_d_inp.text())
+
+        self.p_spacing  = float(self.p_spacing_inp.text())
+        self.p_columns  = int(self.p_columns_inp.text())
+        self.p_rows     = int(self.p_rows_inp.text())
 
         coli_check = self.coli_box.isChecked()
         if coli_check == True:
@@ -112,32 +122,48 @@ class MainWindow(QDialog):
         else:
             self.colision = [0]
 
-        self.read_pptable()
+        self.method         = self.methodCombo.currentIndex()
 
-        self.NmaxLim        = 99999999999999999
-        self.NminLim        = -99999999999999999
-        self.show_plot      = False
-
-        pyfiles.PileOptModel.defineSettings(pg_data,self.xvec,self.yvec,npiles,nvert,singdir,plen,incl,path,self.NmaxLim,self.NminLim,self.pile_d)
+        pyfiles.PileOptModel.defineSettings(pg_data,self.xvec,self.yvec,npiles,nvert,singdir,plen,incl,path,self.NmaxLim,self.NminLim,self.p_spacing)
+    
         
-        self.method = self.methodCombo.currentIndex()
+    def draft_pilegrid(self):
 
+        self.read_input()
 
-    def read_pptable(self):
-        #self.xvec        = []
-        #self.yvec        = []
-        #
-        #for i in range(20):
-        #    try:
-        #        xval = float(self.input_table.item(i,0).text())
-        #        yval = float(self.input_table.item(i,1).text())
-        #        self.xvec.append(xval)
-        #        self.yvec.append(yval)
-        #    except:
-        #        pass
+        self.xvec   = []
+        self.yvec   = []
+        xstart      = self.slab_w*0.5 - self.edge_d
+        ystart      = self.slab_h*0.5 - self.edge_d
         
-        self.xvec        = [1.6, 1.6, 1.6, 1.6, 1.6, 0.8, 0.8, 0.8, 0.8, 0.8]
-        self.yvec        = [4.6, 3.8, 3.0, 2.2, 1.4, 4.6, 3.8, 3.0, 2.2, 1.4]
+        for i in range(self.p_columns):
+            for j in range(self.p_rows):
+                xval = xstart - i*self.p_spacing
+                yval = ystart - j*self.p_spacing
+                if xval > 0 and yval > 0:
+                    self.xvec.append(xval)
+                    self.yvec.append(yval)
+                else:
+                    self.status.setText('Error in pilegrid data...')
+                    self.xvec = [0]
+                    self.yvec = [0]
+                    return
+        self.status.setText('Pilegrid set')
+        self.view_pilegrid()
+
+    def remove_pilegrid(self):
+
+        nr = int(self.grid_remove_val.text())-1
+        try:
+            self.grid_remove_val.clear()
+            self.xvec.pop(nr)
+            self.yvec.pop(nr)
+            self.status.setText('Pileposition removed')
+            self.view_pilegrid()
+        except: 
+            self.status.setText('Error when removing pile')
+
+        
 
     def apply_filter(self):
         self.NmaxLim        = int(self.nMax.text())
@@ -157,35 +183,6 @@ class MainWindow(QDialog):
         self.filter_button.setDisabled(False)
 
         self.filter_case_list()
-
-    def check_pplace(self):
-        if pg_data.running == True:
-            return
-        
-        self.read_pptable()
-
-        self.pile_d     = float(self.pile_dist.text())
-        ncoords         = len(self.xvec)
-
-        Errors          = False
-
-        # Checks in mm as int
-        for i in range(ncoords):
-            xstep = int(1000*self.xvec[0])-int(1000*self.xvec[i])
-            ystep = int(1000*self.yvec[0])-int(1000*self.yvec[i])
-
-            if xstep % int(1000*self.pile_d) != 0:
-                print('xError, pile: ' + str(i))
-                Errors = True
-
-            if ystep % int(1000*self.pile_d) != 0:
-                print('yError, pile: ' + str(i))
-                Errors = True
-
-        if Errors == False:
-            self.status.setText('No errors in pile positions')
-        else:
-            self.status.setText('Errors detected in pile positions')
             
 
     def run_config(self):
@@ -329,7 +326,6 @@ class MainWindow(QDialog):
         self.write_button.setDisabled(False)
         self.grid_gen.setDisabled(False)
         self.grid_view.setDisabled(False)
-        self.readState = True
 
     def set_running_status(self):
         self.configButton.setDisabled(True)  
@@ -340,7 +336,6 @@ class MainWindow(QDialog):
         self.write_button.setDisabled(True)
         self.grid_gen.setDisabled(True)
         self.grid_view.setDisabled(True)
-        self.readState = False
 
     def set_paused_status(self):
         self.configButton.setDisabled(True)  
@@ -351,7 +346,6 @@ class MainWindow(QDialog):
         self.write_button.setDisabled(False)
         self.grid_gen.setDisabled(True)
         self.grid_view.setDisabled(True)
-        self.readState = True
 
     def show_plot_val(self):
         self.show_plot = True
@@ -379,8 +373,6 @@ class MainWindow(QDialog):
                 if self.reaction_selection.currentText() == 'Nr':
                     self.pilenr_plot()
 
-
-        
 
     def set_current_config(self):
 
@@ -464,7 +456,7 @@ class MainWindow(QDialog):
         self.plot_config(self.currentConfig)
         
         for i in range(pg_data.npiles):
-            colorTag = 'c'
+            colorTag = 'orange'
             text = pg.TextItem(str(i+1), color=colorTag,anchor=(0,0))
             text.setPos(pg_data.x1vec[i],pg_data.y1vec[i])
             self.view_area.addItem(text)
@@ -505,7 +497,6 @@ class MainWindow(QDialog):
         self.fxneg.setText(str(round(min(pg_data.lc[:,0]))))
         self.fypos.setText(str(round(max(pg_data.lc[:,1]))))
         self.fyneg.setText(str(round(min(pg_data.lc[:,1]))))
-
         self.mxpos.setText(str(round(max(pg_data.lc[:,3]))))
         self.mxneg.setText(str(round(min(pg_data.lc[:,3]))))
         self.mypos.setText(str(round(max(pg_data.lc[:,4]))))
@@ -516,7 +507,6 @@ class MainWindow(QDialog):
         fyfzvek = []
         mxfzvek = []
         myfzvek = []
-        
 
         for lc in pg_data.lc:
             fxfyvek.append(lc[0]/lc[1])
@@ -525,18 +515,14 @@ class MainWindow(QDialog):
             mxfzvek.append(lc[3]/lc[2])
             myfzvek.append(lc[4]/lc[2])
 
-            
-
         self.fxfypos.setText(str(round(max(fxfyvek),2)))
         self.fxfyneg.setText(str(round(min(fxfyvek),2)))
         self.fxfzmax.setText(str(round(max(fxfzvek),2)))
         self.fxfzmin.setText(str(round(min(fxfzvek),2)))
         self.fyfzmax.setText(str(round(max(fyfzvek),2)))
         self.fyfzmin.setText(str(round(min(fyfzvek),2)))
-
         self.mxfzmax.setText(str(round(max(mxfzvek),2)))
         self.mxfzmin.setText(str(round(min(mxfzvek),2)))
-
         self.myfzmax.setText(str(round(max(myfzvek),2)))
         self.myfzmin.setText(str(round(min(myfzvek),2)))
 
@@ -577,9 +563,8 @@ class MainWindow(QDialog):
             plt = self.view_area.plotItem.plot([paxis_x[0],paxis_x[1]],[0,0], pen='gray', color='gray')
             plt = self.view_area.plotItem.plot([0,0],[paxis_y[0],paxis_y[1]], pen='gray', color='gray')
         
-    def draft_pplace(self):
+    def view_pilegrid(self):
         
-        self.status.setText('Drafting possible pile positions!')
         self.read_input()
         self.view_area.plotItem.clear()
 
@@ -599,6 +584,12 @@ class MainWindow(QDialog):
 
         plt = self.view_area.plotItem.plot([paxis_x[0],paxis_x[1]],[0,0], pen='gray', color='gray')
         plt = self.view_area.plotItem.plot([0,0],[paxis_y[0],paxis_y[1]], pen='gray', color='gray')
+
+        for i in range(len(self.xvec)):
+            colorTag = 'orange'
+            text = pg.TextItem(str(i+1), color=colorTag,anchor=(0,0))
+            text.setPos(self.xvec[i],self.yvec[i])
+            self.view_area.addItem(text)
 
     def swich_color_mode(self):
         
@@ -670,13 +661,12 @@ class MainWindow(QDialog):
         buttonRow.addWidget(self.resumeButton)
         buttonRow.addWidget(self.stopButton)
 
-        pathRow     = QHBoxLayout()
-        
-        line_label               = QLabel("Path")
-        self.path                = QLineEdit()
+        pathRow                 = QHBoxLayout()
+        line_label              = QLabel("Path")
+        self.path_inp           = QLineEdit()
 
         pathRow.addWidget(line_label)
-        pathRow.addWidget(self.path,1)
+        pathRow.addWidget(self.path_inp,1)
 
         layout2.addLayout(buttonRow)
         layout2.addLayout(pathRow)
@@ -690,37 +680,35 @@ class MainWindow(QDialog):
         self.input_area.addWidget(area1)
 
     def create_settings_area(self):
-        self.settings_area = QHBoxLayout()
+        self.settings_area      = QHBoxLayout()
 
-        area1   = QGroupBox("Pile input")
-        layout1 = QGridLayout()
+        area1                   = QGroupBox("Pile input")
+        layout1                 = QGridLayout()
 
         layout1.addWidget(QLabel("Nr of piles"),0,0);                self.nPiles = QSpinBox();           layout1.addWidget(self.nPiles,0,1);          
         layout1.addWidget(QLabel("Nr vertical"),1,0);                self.nVertPiles = QSpinBox();       layout1.addWidget(self.nVertPiles,1,1)
-        layout1.addWidget(QLabel("Inclination"),2,0);                self.incl = QSpinBox();             layout1.addWidget(self.incl,2,1)
+        layout1.addWidget(QLabel("Inclination"),2,0);                self.incl_inp = QSpinBox();         layout1.addWidget(self.incl_inp,2,1)
 
         layout1.addWidget(QLabel("Nr single dir"),0,2);              self.sdirPiles = QSpinBox();        layout1.addWidget(self.sdirPiles,0,3)
-        layout1.addWidget(QLabel("Pile length"),1,2);                self.plen = QSpinBox();             layout1.addWidget(self.plen,1,3)
+        layout1.addWidget(QLabel("Pile length"),1,2);                self.plen_inp = QSpinBox();         layout1.addWidget(self.plen_inp,1,3)
 
         layout1.addWidget(QLabel("Collision up"),0,4);               self.col_up = QSpinBox();           layout1.addWidget(self.col_up,0,5)
         layout1.addWidget(QLabel("Collision down"),1,4);             self.col_down = QSpinBox();         layout1.addWidget(self.col_down,1,5)
         layout1.addWidget(QLabel("Apply check"),2,4);                self.coli_box = QCheckBox();        layout1.addWidget(self.coli_box,2,5)
 
-        area2   = QGroupBox("Slab and pilegrid input")
-        #area2.setMaximumWidth(150)
-        layout2 = QGridLayout()
+        area2                   = QGroupBox("Slab and pilegrid input")
+        layout2                 = QGridLayout()
 
-        layout2.addWidget(QLabel("Height"),0,0);                    self.h_slab = QLineEdit("-");       layout2.addWidget(self.h_slab,0,1)      #;   self.h_slab.setMaximumWidth(40)
-        layout2.addWidget(QLabel("Width"),1,0);                     self.w_slab = QLineEdit("-");       layout2.addWidget(self.w_slab,1,1)      #;   self.w_slab.setMaximumWidth(40)
-        layout2.addWidget(QLabel("Edge dist"),2,0);                 self.edge_d = QLineEdit("-");       layout2.addWidget(self.edge_d,2,1)      #;   self.edge_d.setMaximumWidth(40)
+        layout2.addWidget(QLabel("Height"),0,0);                    self.slab_h_inp = QLineEdit();       layout2.addWidget(self.slab_h_inp,0,1)      #;   self.h_slab.setMaximumWidth(40)
+        layout2.addWidget(QLabel("Width"),1,0);                     self.slab_w_inp = QLineEdit();       layout2.addWidget(self.slab_w_inp,1,1)      #;   self.w_slab.setMaximumWidth(40)
+        layout2.addWidget(QLabel("Edge dist"),2,0);                 self.edge_d_inp = QLineEdit();       layout2.addWidget(self.edge_d_inp,2,1)      #;   self.edge_d.setMaximumWidth(40)
 ##
-        layout2.addWidget(QLabel("Spacing"),0,3);                   self.pile_dist = QLineEdit("-");    layout2.addWidget(self.pile_dist,0,4)   #;   self.pile_dist.setMaximumWidth(40)
-        layout2.addWidget(QLabel("Rows"),1,3);                      self.p_rows = QLineEdit("-");       layout2.addWidget(self.p_rows,1,4)      #;   self.p_rows.setMaximumWidth(40)
-        layout2.addWidget(QLabel("Columns"),2,3);                   self.p_columns = QLineEdit("-");    layout2.addWidget(self.p_columns,2,4)   #;   self.p_columns.setMaximumWidth(40)
+        layout2.addWidget(QLabel("Spacing"),0,3);                   self.p_spacing_inp = QLineEdit();    layout2.addWidget(self.p_spacing_inp,0,4)   #;   self.pile_dist.setMaximumWidth(40)
+        layout2.addWidget(QLabel("Rows"),1,3);                      self.p_rows_inp = QSpinBox();        layout2.addWidget(self.p_rows_inp,1,4)      #;   self.p_rows.setMaximumWidth(40)
+        layout2.addWidget(QLabel("Columns"),2,3);                   self.p_columns_inp = QSpinBox();     layout2.addWidget(self.p_columns_inp,2,4)   #;   self.p_columns.setMaximumWidth(40)
         
-        area4   = QGroupBox("Configurations")
-        #area4.setMaximumWidth(250)
-        layout4 = QGridLayout()
+        area4                   = QGroupBox("Configurations")
+        layout4                 = QGridLayout()
 
         layout4.addWidget(QLabel("Possible"),0,0);                  self.pos_conf = QLineEdit("-");     layout4.addWidget(self.pos_conf,0,1)    #;   self.pos_conf.setMaximumWidth(60)
         layout4.addWidget(QLabel("Saved"),1,0);                     self.tot_conf = QLineEdit("-");     layout4.addWidget(self.tot_conf,1,1)    #;   self.tot_conf.setMaximumWidth(60)
@@ -730,8 +718,8 @@ class MainWindow(QDialog):
         layout4.addWidget(QLabel("Rotation"),1,2);                  self.rot_per = QLineEdit("-");      layout4.addWidget(self.rot_per,1,3)     #;   self.rot_per.setMaximumWidth(60)
         layout4.addWidget(QLabel("Inclination"),2,2);               self.inc_per = QLineEdit("-");      layout4.addWidget(self.inc_per,2,3)     #;   self.inc_per.setMaximumWidth(60)
 
-        area5   = QGroupBox("Settings")
-        layout5 = QGridLayout()                
+        area5                   = QGroupBox("Settings")
+        layout5                 = QGridLayout()                
 
         layout5.addWidget(QLabel("Solver"),0,0);                    self.methodCombo = QComboBox();     layout5.addWidget(self.methodCombo,0,1)    
         layout5.addWidget(QLabel("Priority"),1,0);                  self.prioCombo = QComboBox();       layout5.addWidget(self.prioCombo,1,1)      
@@ -739,7 +727,6 @@ class MainWindow(QDialog):
 
         self.methodCombo.addItems(["FEM","PK54"]);                  self.methodCombo.setCurrentIndex(0)
         self.prioCombo.addItems(["0","1","2","3"]);                 self.prioCombo.setCurrentIndex(2) 
-
         self.themeColor.addItems(["Dark", "Light"]);                self.themeColor.setCurrentIndex(0)
         self.themeColor.activated.connect(self.swich_color_mode);   
 
@@ -792,9 +779,6 @@ class MainWindow(QDialog):
         plotMod_sublayout   = QHBoxLayout()
 
 
-
-
-
         # configure view areas and layouts
         self.view_area.setBackground(None)
         self.reactionList.setFixedWidth(150)
@@ -823,11 +807,11 @@ class MainWindow(QDialog):
 
         # Pile grid area
         self.grid_view = QPushButton("View")
-        self.grid_view.clicked.connect(self.draft_pplace) # Show, dont modify
-        self.grid_gen = QPushButton("Draft")
-        self.grid_gen.clicked.connect(self.draft_pplace) # Generate new grid and show
+        self.grid_view.clicked.connect(self.view_pilegrid) # Show, dont modify
+        self.grid_gen = QPushButton("New grid")
+        self.grid_gen.clicked.connect(self.draft_pilegrid) # Generate new grid and show
         self.grid_remove = QPushButton("Remove")
-        self.grid_remove.clicked.connect(self.draft_pplace) # Generate new grid and show
+        self.grid_remove.clicked.connect(self.remove_pilegrid) # Generate new grid and show
         self.grid_remove_val = QLineEdit("")
 
         pilegrid_sublayout.addWidget(self.grid_remove)
@@ -869,12 +853,7 @@ class MainWindow(QDialog):
         plotMod_layout.addWidget(self.show_button)
         plotMod_layout.addWidget(self.hide_button)
         plotMod_layout.addWidget(self.write_button)
-
-        
-
-
-
-
+    
         filter_area.setLayout(filter_layout)
         pilegrid_area.setLayout(pilegrid_layout)
         plotMod_area.setLayout(plotMod_layout)
@@ -882,7 +861,6 @@ class MainWindow(QDialog):
         aux_area.addWidget(pilegrid_area)
         aux_area.addWidget(filter_area)
         aux_area.addWidget(plotMod_area)
-
 
         # Add view-, config-, pile-, and pplace-area to result layout
         result_layout.addWidget(self.view_area,1)
@@ -897,7 +875,6 @@ class MainWindow(QDialog):
         runningLabel            = QLabel("Running [s]: ")
         estimLabel              = QLabel("Estim [s]: ")
         statusLabel             = QLabel("Status: ")
-
 
         self.runningTIme        = QLineEdit("-");   self.runningTIme.setReadOnly(True);      self.runningTIme.setMaximumWidth(50)
         self.estimTime          = QLineEdit("-");   self.estimTime.setReadOnly(True);        self.estimTime.setMaximumWidth(50)

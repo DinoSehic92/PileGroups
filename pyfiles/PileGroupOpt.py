@@ -392,7 +392,11 @@ class PileOptModel:
                     z2 = self.y1vec[i]
 
                     alpha = np.radians(self.bearing[i])
-                    beta = atan(1/self.incl[i])
+                    
+                    if self.incl[i] == 0:
+                        beta = 0
+                    else:
+                        beta = atan(1/self.incl[i])
 
                     cq =        np.array([  [1, 0, 0],
                                             [0, 1, 0],
