@@ -113,9 +113,10 @@ class MainWindow(QDialog):
             self.colision = [0]
 
         self.read_pptable()
-        
+
         self.NmaxLim        = 99999999999999999
         self.NminLim        = -99999999999999999
+        self.show_plot      = False
 
         pyfiles.PileOptModel.defineSettings(pg_data,self.xvec,self.yvec,npiles,nvert,singdir,plen,incl,path,self.NmaxLim,self.NminLim,self.pile_d)
         
@@ -141,12 +142,20 @@ class MainWindow(QDialog):
     def apply_filter(self):
         self.NmaxLim        = int(self.nMax.text())
         self.NminLim        = int(self.nMin.text())
+
+        self.clear_button.setDisabled(False)
+        self.filter_button.setDisabled(False)
+        
         self.filter_case_list()
 
 
     def clear_filter(self):
         self.NmaxLim        = 99999999999999999
         self.NminLim        = -99999999999999999
+
+        self.clear_button.setDisabled(True)
+        self.filter_button.setDisabled(False)
+
         self.filter_case_list()
 
     def check_pplace(self):
@@ -216,6 +225,9 @@ class MainWindow(QDialog):
             self.pos_conf.setText(str(pg_data.totConfigs))
             self.tot_conf.setText(str(pg_data.nrConfigs))
             self.fil_conf.setText("-")
+            self.pos_per.setText(str(pg_data.pos_per))
+            self.rot_per.setText(str(pg_data.rot_per))
+            self.inc_per.setText(str(pg_data.inc_per))
         
 
 
@@ -314,7 +326,6 @@ class MainWindow(QDialog):
         self.pauseButton.setDisabled(True)   
         self.resumeButton.setDisabled(True)  
         self.stopButton.setDisabled(True) 
-        self.singleButton.setDisabled(False) 
         self.write_button.setDisabled(False)
         self.grid_gen.setDisabled(False)
         self.grid_view.setDisabled(False)
@@ -326,7 +337,6 @@ class MainWindow(QDialog):
         self.pauseButton.setDisabled(False)   
         self.resumeButton.setDisabled(True)  
         self.stopButton.setDisabled(False) 
-        self.singleButton.setDisabled(True) 
         self.write_button.setDisabled(True)
         self.grid_gen.setDisabled(True)
         self.grid_view.setDisabled(True)
@@ -338,25 +348,21 @@ class MainWindow(QDialog):
         self.pauseButton.setDisabled(True)   
         self.resumeButton.setDisabled(False)  
         self.stopButton.setDisabled(False) 
-        self.singleButton.setDisabled(True) 
         self.write_button.setDisabled(False)
         self.grid_gen.setDisabled(True)
         self.grid_view.setDisabled(True)
         self.readState = True
 
-    def run_single(self):
-        self.read_input()
-        self.case_singlerun = int(self.currentConfigLab.text())
+    def show_plot_val(self):
+        self.show_plot = True
+        self.update_current_config()
 
-        pyfiles.PileOptModel.SingleRun(pg_data,self.case_singlerun)
-        pyfiles.PileOptModel.returnPileGroup(pg_data)
-
-        self.currentNmaxLab.setText(str(pg_data.nmax_single))
-        self.currentNminLab.setText(str(pg_data.nmin_single))
+    def hide_plot_val(self):
+        self.show_plot = False
+        self.update_current_config()
 
 
     def update_current_config(self):
-        if self.readState == True:
             rowValue = self.configList.currentItem().text().replace('Config ','')
             bpoint = rowValue.index(":")
             self.currentConfig = int(rowValue[:bpoint])
@@ -365,13 +371,16 @@ class MainWindow(QDialog):
             self.update_pile_reaction_list()
             self.plot_config(self.currentConfig)
 
-            if self.reaction_selection.currentText() == 'Max':
-                self.reaction_plot_max()
-            if self.reaction_selection.currentText() == 'Min':
-                self.reaction_plot_min()
-            if self.reaction_selection.currentText() == 'Nr':
-                self.pilenr_plot()
-    
+            if self.show_plot == True:
+                if self.reaction_selection.currentText() == 'Max':
+                    self.reaction_plot_max()
+                if self.reaction_selection.currentText() == 'Min':
+                    self.reaction_plot_min()
+                if self.reaction_selection.currentText() == 'Nr':
+                    self.pilenr_plot()
+
+
+        
 
     def set_current_config(self):
 
@@ -651,7 +660,6 @@ class MainWindow(QDialog):
         self.pauseButton         = QPushButton("Pause")                    ; self.pauseButton.clicked.connect(self.pause_worker)
         self.resumeButton        = QPushButton("Resume")                   ; self.resumeButton.clicked.connect(self.resume_worker)
         self.stopButton          = QPushButton("Stop")                     ; self.stopButton.clicked.connect(self.stop_worker)
-        self.singleButton        = QPushButton("Single Run")               ; self.singleButton.clicked.connect(self.run_single)
 
 
         buttonRow.addWidget(self.lcButton)
@@ -661,7 +669,6 @@ class MainWindow(QDialog):
         buttonRow.addWidget(self.pauseButton)
         buttonRow.addWidget(self.resumeButton)
         buttonRow.addWidget(self.stopButton)
-        buttonRow.addWidget(self.singleButton)
 
         pathRow     = QHBoxLayout()
         
@@ -686,7 +693,6 @@ class MainWindow(QDialog):
         self.settings_area = QHBoxLayout()
 
         area1   = QGroupBox("Pile input")
-        area1.setMaximumWidth(400)
         layout1 = QGridLayout()
 
         layout1.addWidget(QLabel("Nr of piles"),0,0);                self.nPiles = QSpinBox();           layout1.addWidget(self.nPiles,0,1);          
@@ -701,29 +707,35 @@ class MainWindow(QDialog):
         layout1.addWidget(QLabel("Apply check"),2,4);                self.coli_box = QCheckBox();        layout1.addWidget(self.coli_box,2,5)
 
         area2   = QGroupBox("Slab and pilegrid input")
+        #area2.setMaximumWidth(150)
         layout2 = QGridLayout()
 
-        layout2.addWidget(QLabel("Height"),0,0);                    self.h_slab = QLineEdit("-");       layout2.addWidget(self.h_slab,0,1)      ;   self.h_slab.setMaximumWidth(40)
-        layout2.addWidget(QLabel("Width"),1,0);                     self.w_slab = QLineEdit("-");       layout2.addWidget(self.w_slab,1,1)      ;   self.w_slab.setMaximumWidth(40)
-        layout2.addWidget(QLabel("Edge dist"),2,0);                 self.edge_d = QLineEdit("-");       layout2.addWidget(self.edge_d,2,1)      ;   self.edge_d.setMaximumWidth(40)
-
-        layout2.addWidget(QLabel("Spacing"),0,3);                   self.pile_dist = QLineEdit("-");    layout2.addWidget(self.pile_dist,0,4)   ;   self.pile_dist.setMaximumWidth(40)
-        layout2.addWidget(QLabel("Rows"),1,3);                      self.p_rows = QLineEdit("-");       layout2.addWidget(self.p_rows,1,4)      ;   self.p_rows.setMaximumWidth(40)
-        layout2.addWidget(QLabel("Columns"),2,3);                   self.p_columns = QLineEdit("-");    layout2.addWidget(self.p_columns,2,4)   ;   self.p_columns.setMaximumWidth(40)
+        layout2.addWidget(QLabel("Height"),0,0);                    self.h_slab = QLineEdit("-");       layout2.addWidget(self.h_slab,0,1)      #;   self.h_slab.setMaximumWidth(40)
+        layout2.addWidget(QLabel("Width"),1,0);                     self.w_slab = QLineEdit("-");       layout2.addWidget(self.w_slab,1,1)      #;   self.w_slab.setMaximumWidth(40)
+        layout2.addWidget(QLabel("Edge dist"),2,0);                 self.edge_d = QLineEdit("-");       layout2.addWidget(self.edge_d,2,1)      #;   self.edge_d.setMaximumWidth(40)
+##
+        layout2.addWidget(QLabel("Spacing"),0,3);                   self.pile_dist = QLineEdit("-");    layout2.addWidget(self.pile_dist,0,4)   #;   self.pile_dist.setMaximumWidth(40)
+        layout2.addWidget(QLabel("Rows"),1,3);                      self.p_rows = QLineEdit("-");       layout2.addWidget(self.p_rows,1,4)      #;   self.p_rows.setMaximumWidth(40)
+        layout2.addWidget(QLabel("Columns"),2,3);                   self.p_columns = QLineEdit("-");    layout2.addWidget(self.p_columns,2,4)   #;   self.p_columns.setMaximumWidth(40)
         
         area4   = QGroupBox("Configurations")
+        #area4.setMaximumWidth(250)
         layout4 = QGridLayout()
 
-        layout4.addWidget(QLabel("Possible"),0,0);                  self.pos_conf = QLineEdit("-");     layout4.addWidget(self.pos_conf,0,1)
-        layout4.addWidget(QLabel("Saved"),1,0);                     self.tot_conf = QLineEdit("-");     layout4.addWidget(self.tot_conf,1,1)
-        layout4.addWidget(QLabel("Solved"),2,0);                    self.fil_conf = QLineEdit("-");     layout4.addWidget(self.fil_conf,2,1)
+        layout4.addWidget(QLabel("Possible"),0,0);                  self.pos_conf = QLineEdit("-");     layout4.addWidget(self.pos_conf,0,1)    #;   self.pos_conf.setMaximumWidth(60)
+        layout4.addWidget(QLabel("Saved"),1,0);                     self.tot_conf = QLineEdit("-");     layout4.addWidget(self.tot_conf,1,1)    #;   self.tot_conf.setMaximumWidth(60)
+        layout4.addWidget(QLabel("Solved"),2,0);                    self.fil_conf = QLineEdit("-");     layout4.addWidget(self.fil_conf,2,1)    #;   self.fil_conf.setMaximumWidth(60)
+#
+        layout4.addWidget(QLabel("Position"),0,2);                  self.pos_per = QLineEdit("-");      layout4.addWidget(self.pos_per,0,3)     #;   self.pos_per.setMaximumWidth(60)
+        layout4.addWidget(QLabel("Rotation"),1,2);                  self.rot_per = QLineEdit("-");      layout4.addWidget(self.rot_per,1,3)     #;   self.rot_per.setMaximumWidth(60)
+        layout4.addWidget(QLabel("Inclination"),2,2);               self.inc_per = QLineEdit("-");      layout4.addWidget(self.inc_per,2,3)     #;   self.inc_per.setMaximumWidth(60)
 
         area5   = QGroupBox("Settings")
         layout5 = QGridLayout()                
 
-        layout5.addWidget(QLabel("Solver"),0,0);                    self.methodCombo = QComboBox();     layout5.addWidget(self.methodCombo,0,1)
-        layout5.addWidget(QLabel("Priority"),1,0);                  self.prioCombo = QComboBox();       layout5.addWidget(self.prioCombo,1,1)
-        layout5.addWidget(QLabel("Theme"),2,0);                     self.themeColor = QComboBox();      layout5.addWidget(self.themeColor,2,1)
+        layout5.addWidget(QLabel("Solver"),0,0);                    self.methodCombo = QComboBox();     layout5.addWidget(self.methodCombo,0,1)    
+        layout5.addWidget(QLabel("Priority"),1,0);                  self.prioCombo = QComboBox();       layout5.addWidget(self.prioCombo,1,1)      
+        layout5.addWidget(QLabel("Theme"),2,0);                     self.themeColor = QComboBox();      layout5.addWidget(self.themeColor,2,1)     
 
         self.methodCombo.addItems(["FEM","PK54"]);                  self.methodCombo.setCurrentIndex(0)
         self.prioCombo.addItems(["0","1","2","3"]);                 self.prioCombo.setCurrentIndex(2) 
@@ -735,11 +747,14 @@ class MainWindow(QDialog):
         self.pos_conf.setReadOnly(True)
         self.tot_conf.setReadOnly(True)
         self.fil_conf.setReadOnly(True)
+        self.pos_per.setReadOnly(True)
+        self.rot_per.setReadOnly(True)
+        self.inc_per.setReadOnly(True)
 
-        area1.setLayout(layout1);   self.settings_area.addWidget(area1)
-        area2.setLayout(layout2);   self.settings_area.addWidget(area2)
-        area4.setLayout(layout4);   self.settings_area.addWidget(area4,1)
-        area5.setLayout(layout5);   self.settings_area.addWidget(area5,1)
+        area1.setLayout(layout1);   self.settings_area.addWidget(area1,40)
+        area2.setLayout(layout2);   self.settings_area.addWidget(area2,20)
+        area4.setLayout(layout4);   self.settings_area.addWidget(area4,25)
+        area5.setLayout(layout5);   self.settings_area.addWidget(area5,15)
 
 
     def create_result_area(self):
@@ -772,7 +787,7 @@ class MainWindow(QDialog):
         filter_layout       = QVBoxLayout()
         filter_sublayout    = QGridLayout()
         
-        plotMod_area        = QGroupBox('Plot values')      ; plotMod_area.setFixedWidth(150); plotMod_area.setFixedHeight(120)
+        plotMod_area        = QGroupBox('Plot values')      ; plotMod_area.setFixedWidth(150); plotMod_area.setFixedHeight(150)
         plotMod_layout      = QVBoxLayout()
         plotMod_sublayout   = QHBoxLayout()
 
@@ -827,6 +842,7 @@ class MainWindow(QDialog):
         self.filter_button.clicked.connect(self.apply_filter)
         self.clear_button = QPushButton("Clear")                            
         self.clear_button.clicked.connect(self.clear_filter) # upd config without filter
+        self.clear_button.setDisabled(True)
 
         filter_sublayout.addWidget(QLabel("Max"),0,0);                       self.nMax = QLineEdit();            filter_sublayout.addWidget(self.nMax,1,0) 
         filter_sublayout.addWidget(QLabel("Min"),0,1);                       self.nMin = QLineEdit();            filter_sublayout.addWidget(self.nMin,1,1) 
@@ -837,10 +853,12 @@ class MainWindow(QDialog):
 
 
         # PlotMod area
-        self.plot_button = QPushButton("Plot")                            
-        self.plot_button.clicked.connect(self.write_current_config)
+        self.show_button = QPushButton("Show")                            
+        self.show_button.clicked.connect(self.show_plot_val)
+        self.hide_button = QPushButton("Hide")                            
+        self.hide_button.clicked.connect(self.hide_plot_val)
         self.reaction_selection = QComboBox()
-        self.reaction_selection.addItems(['None','Max','Min','Nr'])
+        self.reaction_selection.addItems(['Max','Min','Nr'])
         self.write_button = QPushButton("Write output")                            
         self.write_button.clicked.connect(self.write_current_config)
 
@@ -848,7 +866,8 @@ class MainWindow(QDialog):
         plotMod_sublayout.addWidget(self.reaction_selection)
 
         plotMod_layout.addLayout(plotMod_sublayout)
-        plotMod_layout.addWidget(self.plot_button)
+        plotMod_layout.addWidget(self.show_button)
+        plotMod_layout.addWidget(self.hide_button)
         plotMod_layout.addWidget(self.write_button)
 
         

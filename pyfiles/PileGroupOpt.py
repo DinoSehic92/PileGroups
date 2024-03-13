@@ -568,9 +568,10 @@ class PileOptModel:
         n = 0
         self.totConfigs = setnr*len(piledirmat)*len(pileinclmat)
 
-        print("Positional permutations:" + str(setnr))
-        print("Directionsal permutations: " + str(len(piledirmat)))
-        print("Inclinational permutations: " + str(len(pileinclmat)))
+        self.pos_per = setnr
+        self.rot_per = len(piledirmat)
+        self.inc_per = len(pileinclmat)
+
         signalstep = int(self.totConfigs)/100
         ntemp = 0
         for i in range(setnr):
