@@ -588,6 +588,31 @@ class MainWindow(QDialog):
         self.view_area.setYRange(-valrange,valrange, padding=0.1)
         self.view_area.setBackground(None)
 
+        self.xvec = []
+        self.yvec = []
+    
+        for i in range (1,int(self.slab_h)+1):
+            if i > int(self.slab_h)//2:
+                self.yvec.append(i - int(self.slab_h)//2)
+            else:
+                self.yvec.append(i)
+        for i in range (1,int(self.slab_h)+1):
+            if i > int(self.slab_h)//2:
+                self.xvec.append(((self.slab_w)/2) /3)
+            else:
+                self.xvec.append((((self.slab_w)/2) /3)*2)
+
+        if (int(self.slab_h)%2 == 0):
+            self.yvec.pop(int(self.slab_h)//2 -1)
+            self.xvec.pop(int(self.slab_h)//2 -1)
+            self.yvec.pop(int(len(self.yvec)) -1)
+            self.xvec.pop(int(len(self.xvec)) -1)
+        else:
+            self.yvec.pop(int(self.slab_h) -1)
+            self.xvec.pop(int(self.slab_h) -1)
+        print(self.xvec)
+        print(self.yvec)
+
         h = self.slab_h*0.5; y_draft = [h,h,-h,-h,h]
         w = self.slab_w*0.5; x_draft = [w,-w,-w,w,w]
 
