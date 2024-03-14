@@ -1,13 +1,14 @@
 import pyfiles
 import sys
 import numpy as np
-import win32api,win32con,win32process
 
 import qdarktheme
 import pyqtgraph as pg
 
+import pickle as pkl
+
 from PySide6.QtWidgets import ( QDialog,QApplication,QVBoxLayout,QGroupBox,QLabel,QLineEdit,QPushButton,QHBoxLayout,QGridLayout,
-                                QListWidget,QTableWidget,QHeaderView,QProgressBar,QTableWidgetItem,QCheckBox, QComboBox, QSpinBox, QSpacerItem,QSizePolicy)
+                                QListWidget,QProgressBar,QCheckBox,QComboBox,QSpinBox)
 
 from PySide6.QtCore import Qt, QThreadPool, Signal, Slot, QObject, QTimer
 
@@ -15,10 +16,10 @@ pg_data = pyfiles.PileOptModel()
 
 
 class Signals(QObject):
-    completed = Signal()
-    progress = Signal()
-    stop = Signal()
-    check = Signal()
+    completed   = Signal()
+    progress    = Signal()
+    stop        = Signal()
+    check       = Signal()
 
 
 class MainWindow(QDialog):
@@ -26,107 +27,136 @@ class MainWindow(QDialog):
     def __init__(self):
         super().__init__()
 
-        pid = win32api.GetCurrentProcessId()
-        handle = win32api.OpenProcess(win32con.PROCESS_ALL_ACCESS, True, pid)
-        win32process.SetPriorityClass(handle, win32process.REALTIME_PRIORITY_CLASS)
-        print("High prio set")
-
- 
         self.drawUI()
-        self.set_default_input()   
+        self.read_input_file(1)
+        self.set_new_input()
 
 
-    #def write_input(self):
-        #Test
-        #self.nPiles.setText("8")
-        #self.nVertPiles.setText("0")
-        #self.incl.setText("4")
-        #self.sdirPiles.setText("3")
-        #self.plen.setText("7")
-#
-        #self.nMax.setText("0")
-        #self.nMin.setText("-2400")
-        #self.nFilter.setChecked(True)
-#
-        #self.col_up.setText("2")
-        #self.col_down.setText("2")
-        #self.coli_box.setChecked(True)
-#
-        #self.h_slab.setText("9")
-        #self.w_slab.setText("6")
-        #self.pile_dist.setText("1.0")
-#
-        #self.path.setText("C:\\Utvecklingsprojekt\\PileGroups\\Underlag\Loadcases.xlsx")
-#
-        #xvec        = [0.5, 0.5, 0.5, 1.5, 1.5, 1.5, 2.5, 2.5, 2.5, 0.5, 1.5, 2.5, "", "", "", "", "", "", "", ""]
-        #yvec        = [2, 3, 4, 2, 3, 4, 2, 3, 4, 1, 1, 1, "", "", "", "", "", "", "", ""]
+    def set_new_input(self):
 
+        self.nPiles_inp.setValue(self.npiles)
+        self.nVertPiles_inp.setValue(self.nvert)
+        self.incl_inp.setValue(self.incl)
+        self.sdirPiles_inp.setValue(self.singdir)
+        self.plen_inp.setValue(self.plen)
 
-
-    def set_default_input(self):
-
-        self.nPiles.setValue(6)
-        self.nVertPiles.setValue(0)
-        self.incl_inp.setValue(4)
-        self.sdirPiles.setValue(2)
-        self.plen_inp.setValue(7)
-
-        self.col_up.setValue(1)
-        self.col_down.setValue(4)
+        self.col_up_inp.setValue(self.col_up)
+        self.col_down_inp.setValue(self.col_down)
         self.coli_box.setChecked(True)
 
         self.nMax.setText("25")
         self.nMin.setText("-1000")
 
-        self.slab_h_inp.setText("10")
-        self.slab_w_inp.setText("4")
-        self.edge_d_inp.setText("0.5")
+        self.slab_h_inp.setText(str(self.slab_h))
+        self.slab_w_inp.setText(str(self.slab_w))
+        self.edge_d_inp.setText(str(self.edge_d))
 
-        self.p_spacing_inp.setText("0.8")
-        self.p_columns_inp.setValue(2)
-        self.p_rows_inp.setValue(2)
+        self.p_spacing_inp.setText(str(self.p_spacing))
+        self.p_columns_inp.setValue(self.p_columns)
+        self.p_rows_inp.setValue(self.p_rows)
+        self.path_inp.setText(str(self.path))
 
-        self.path_inp.setText("C:\\Utvecklingsprojekt\\PileGroups\\Underlag\Loadcases4.xlsx")
+        self.methodCombo.setCurrentIndex(1)
 
         self.show_plot      = False
-
-        self.xvec           = [1.6, 1.6, 1.6, 1.6, 1.6, 0.8, 0.8, 0.8, 0.8, 0.8]
-        self.yvec           = [4.6, 3.8, 3.0, 2.2, 1.4, 4.6, 3.8, 3.0, 2.2, 1.4]
-
         self.NmaxLim        =  99999999999999999
         self.NminLim        = -99999999999999999
 
 
     def read_input(self):
 
-        npiles          = int(self.nPiles.text())
-        nvert           = int(self.nVertPiles.text())
-        singdir         = int(self.sdirPiles.text())
-        plen            = int(self.plen_inp.text())
-        incl            = int(self.incl_inp.text())
-        path            = str(self.path_inp.text())
+        self.npiles         = int(self.nPiles_inp.text())
+        self.nvert          = int(self.nVertPiles_inp.text())
+        self.singdir        = int(self.sdirPiles_inp.text())
+        self.plen           = int(self.plen_inp.text())
+        self.incl           = int(self.incl_inp.text())
+        self.path           = str(self.path_inp.text())
 
-        self.slab_h     = float(self.slab_h_inp.text())
-        self.slab_w     = float(self.slab_w_inp.text())
-        self.edge_d     = float(self.edge_d_inp.text())
-
-        self.p_spacing  = float(self.p_spacing_inp.text())
-        self.p_columns  = int(self.p_columns_inp.text())
-        self.p_rows     = int(self.p_rows_inp.text())
+        self.slab_h         = float(self.slab_h_inp.text())
+        self.slab_w         = float(self.slab_w_inp.text())
+        self.edge_d         = float(self.edge_d_inp.text())
+        self.p_spacing      = float(self.p_spacing_inp.text())
+        self.p_columns      = int(self.p_columns_inp.text())
+        self.p_rows         = int(self.p_rows_inp.text())
 
         coli_check = self.coli_box.isChecked()
         if coli_check == True:
-            col_up      = int(self.col_up.text())
-            col_down    = int(self.col_down.text())
-            self.colision = np.arange(-col_up,col_down+1,1)
+            self.col_up     = int(self.col_up_inp.text())
+            self.col_down   = int(self.col_down_inp.text())
+            self.colision   = np.arange(-self.col_up,self.col_down+1,1)
         else:
-            self.colision = [0]
+            self.colision   = [0]
 
         self.method         = self.methodCombo.currentIndex()
 
-        pyfiles.PileOptModel.defineSettings(pg_data,self.xvec,self.yvec,npiles,nvert,singdir,plen,incl,path,self.NmaxLim,self.NminLim,self.p_spacing)
+        self.send_input()
+
+    def send_input(self):
+        pyfiles.PileOptModel.defineSettings(pg_data,self.xvec,self.yvec,self.npiles,self.nvert,self.singdir,self.plen,self.incl,self.path,self.NmaxLim,self.NminLim,self.p_spacing)
     
-        
+    def write_input_file(self):
+        self.read_input()
+        filename            = str(self.inp_file_path.text())
+        self.inputPath      = str("InputFile_" + filename) + ".pkl"
+        inputData           = [self.npiles, self.nvert, self.singdir, self.plen, self.incl, self.path, self.slab_h, self.slab_w, self.edge_d, self.p_spacing, self.p_columns, self.p_rows, self.colision, self.method, self.xvec, self.yvec, self.col_up, self.col_down] 
+
+        with open(self.inputPath, "wb") as f:
+            for input in inputData:
+                pkl.dump(input,f)
+
+    def read_input_file(self,mode):
+        if mode == 0:
+            filename            = str(self.inp_file_path.text())
+            self.inputPath      = str("InputFile_" + filename) + ".pkl"
+
+        if mode == 1:
+            self.inputPath = "InputFile_startup.pkl"
+
+        inputData           = []
+        with open(self.inputPath, "rb") as f:
+            for i in range(18):
+                inputData.append(pkl.load(f))
+
+        [self.npiles, self.nvert, self.singdir, self.plen, self.incl, self.path, self.slab_h, self.slab_w, self.edge_d, self.p_spacing, self.p_columns, self.p_rows, self.colision, self.method, self.xvec, self.yvec, self.col_up, self.col_down] = inputData
+
+        self.set_new_input()
+
+    def write_result_file(self):
+        filename            = str(self.res_file_path.text())
+        self.inputPath      = str("OutputFile_" + filename) + ".pkl"
+
+        inputData           = [self.npiles, self.nvert, self.singdir, self.plen, self.incl, self.path, self.slab_h, self.slab_w, self.edge_d, self.p_spacing, self.p_columns, self.p_rows, self.colision, self.method, self.xvec, self.yvec, self.col_up, self.col_down] 
+        resultData          = [pg_data.bearing_arr, pg_data.incl_arr, pg_data.xvec_arr, pg_data.yvec_arr, pg_data.totConfigs, pg_data.nrConfigs, pg_data.numberSolvedConfigs,pg_data.pos_per, pg_data.rot_per, pg_data.inc_per, pg_data.nMaxPileConfig, pg_data.nMinPileConfig] 
+
+
+        with open(self.inputPath, "wb") as f:
+
+            for input in inputData:
+                pkl.dump(input,f)
+
+            for input in resultData:
+                pkl.dump(input,f)
+
+    def read_result_file(self,mode):
+
+        filename            = str(self.res_file_path.text())
+        self.inputPath      = str("OutputFile_" + filename) + ".pkl"
+        inputData           = []
+        resultData          = []
+
+        with open(self.inputPath, "rb") as f:
+            for i in range(18):
+                inputData.append(pkl.load(f))
+            for i in range(12):
+                resultData.append(pkl.load(f))
+
+        [pg_data.bearing_arr, pg_data.incl_arr, pg_data.xvec_arr, pg_data.yvec_arr, pg_data.totConfigs, pg_data.nrConfigs, pg_data.numberSolvedConfigs,pg_data.pos_per, pg_data.rot_per, pg_data.inc_per, pg_data.nMaxPileConfig, pg_data.nMinPileConfig]  = resultData
+        [self.npiles, self.nvert, self.singdir, self.plen, self.incl, self.path, self.slab_h, self.slab_w, self.edge_d, self.p_spacing, self.p_columns, self.p_rows, self.colision, self.method, self.xvec, self.yvec, self.col_up, self.col_down] = inputData
+
+        self.set_new_input()
+        self.send_input()
+        self.filter_case_list()
+
     def draft_pilegrid(self):
 
         self.read_input()
@@ -387,7 +417,7 @@ class MainWindow(QDialog):
     def update_pile_reaction_list(self):
 
         self.reactionList.clear()
-        for i in range(pg_data.npiles):
+        for i in range(self.npiles*4):
             self.reactionList.addItems(["Pile " + str(i+1) + ":  " + str(round(self.currentNmax[i])) + " | " + str(round(self.currentNmin[i]))])
         
 
@@ -685,15 +715,15 @@ class MainWindow(QDialog):
         area1                   = QGroupBox("Pile input")
         layout1                 = QGridLayout()
 
-        layout1.addWidget(QLabel("Nr of piles"),0,0);                self.nPiles = QSpinBox();           layout1.addWidget(self.nPiles,0,1);          
-        layout1.addWidget(QLabel("Nr vertical"),1,0);                self.nVertPiles = QSpinBox();       layout1.addWidget(self.nVertPiles,1,1)
+        layout1.addWidget(QLabel("Nr of piles"),0,0);                self.nPiles_inp = QSpinBox();           layout1.addWidget(self.nPiles_inp,0,1);          
+        layout1.addWidget(QLabel("Nr vertical"),1,0);                self.nVertPiles_inp = QSpinBox();       layout1.addWidget(self.nVertPiles_inp,1,1)
         layout1.addWidget(QLabel("Inclination"),2,0);                self.incl_inp = QSpinBox();         layout1.addWidget(self.incl_inp,2,1)
 
-        layout1.addWidget(QLabel("Nr single dir"),0,2);              self.sdirPiles = QSpinBox();        layout1.addWidget(self.sdirPiles,0,3)
+        layout1.addWidget(QLabel("Nr single dir"),0,2);              self.sdirPiles_inp = QSpinBox();        layout1.addWidget(self.sdirPiles_inp,0,3)
         layout1.addWidget(QLabel("Pile length"),1,2);                self.plen_inp = QSpinBox();         layout1.addWidget(self.plen_inp,1,3)
 
-        layout1.addWidget(QLabel("Collision up"),0,4);               self.col_up = QSpinBox();           layout1.addWidget(self.col_up,0,5)
-        layout1.addWidget(QLabel("Collision down"),1,4);             self.col_down = QSpinBox();         layout1.addWidget(self.col_down,1,5)
+        layout1.addWidget(QLabel("Collision up"),0,4);               self.col_up_inp = QSpinBox();           layout1.addWidget(self.col_up_inp,0,5)
+        layout1.addWidget(QLabel("Collision down"),1,4);             self.col_down_inp = QSpinBox();         layout1.addWidget(self.col_down_inp,1,5)
         layout1.addWidget(QLabel("Apply check"),2,4);                self.coli_box = QCheckBox();        layout1.addWidget(self.coli_box,2,5)
 
         area2                   = QGroupBox("Slab and pilegrid input")
@@ -766,18 +796,24 @@ class MainWindow(QDialog):
         aux_area            = QVBoxLayout()   
         aux_area.setAlignment(Qt.AlignTop)   
 
-        pilegrid_area       = QGroupBox('Pile grid')        ; pilegrid_area.setFixedWidth(150); pilegrid_area.setFixedHeight(120)
+        pilegrid_area       = QGroupBox('Pile grid')            ; pilegrid_area.setFixedWidth(170)#; pilegrid_area.setFixedHeight(120)
         pilegrid_layout     = QVBoxLayout()
         pilegrid_sublayout  = QHBoxLayout()
 
-        filter_area         = QGroupBox('Config filter')    ; filter_area.setFixedWidth(150); filter_area.setFixedHeight(150)
-        filter_layout       = QVBoxLayout()
+        filter_area         = QGroupBox('Config filter')        ; filter_area.setFixedWidth(170)#; filter_area.setFixedHeight(150)
         filter_sublayout    = QGridLayout()
         
-        plotMod_area        = QGroupBox('Plot values')      ; plotMod_area.setFixedWidth(150); plotMod_area.setFixedHeight(150)
+        plotMod_area        = QGroupBox('Plot values')          ; plotMod_area.setFixedWidth(170)#; plotMod_area.setFixedHeight(150)
         plotMod_layout      = QVBoxLayout()
-        plotMod_sublayout   = QHBoxLayout()
+        plotMod_sublayout   = QGridLayout()
 
+        inputFile_area        = QGroupBox('Input file')         ; plotMod_area.setFixedWidth(170)#; plotMod_area.setFixedHeight(100)
+        inputFile_layout      = QVBoxLayout()
+        inputFile_sublayout1  = QHBoxLayout()
+
+        resultFile_area        = QGroupBox('Result file')       ; plotMod_area.setFixedWidth(170)#; plotMod_area.setFixedHeight(100)
+        resultFile_layout      = QVBoxLayout()
+        resultFile_sublayout1  = QHBoxLayout()
 
         # configure view areas and layouts
         self.view_area.setBackground(None)
@@ -828,14 +864,9 @@ class MainWindow(QDialog):
         self.clear_button.clicked.connect(self.clear_filter) # upd config without filter
         self.clear_button.setDisabled(True)
 
-        filter_sublayout.addWidget(QLabel("Max"),0,0);                       self.nMax = QLineEdit();            filter_sublayout.addWidget(self.nMax,1,0) 
-        filter_sublayout.addWidget(QLabel("Min"),0,1);                       self.nMin = QLineEdit();            filter_sublayout.addWidget(self.nMin,1,1) 
-
-        filter_layout.addLayout(filter_sublayout)
-        filter_layout.addWidget(self.filter_button)
-        filter_layout.addWidget(self.clear_button)
-
-
+        filter_sublayout.addWidget(QLabel("Max"),0,0);  self.nMax = QLineEdit();    filter_sublayout.addWidget(self.nMax,1,0);  filter_sublayout.addWidget(self.filter_button,2,0);   
+        filter_sublayout.addWidget(QLabel("Min"),0,1);  self.nMin = QLineEdit();    filter_sublayout.addWidget(self.nMin,1,1);  filter_sublayout.addWidget(self.clear_button,2,1)  
+                                                           
         # PlotMod area
         self.show_button = QPushButton("Show")                            
         self.show_button.clicked.connect(self.show_plot_val)
@@ -846,21 +877,47 @@ class MainWindow(QDialog):
         self.write_button = QPushButton("Write output")                            
         self.write_button.clicked.connect(self.write_current_config)
 
-        plotMod_sublayout.addWidget(QLabel("Plot view"))
-        plotMod_sublayout.addWidget(self.reaction_selection)
+        plotMod_sublayout.addWidget(QLabel("Plot view"),0,0);   plotMod_sublayout.addWidget(self.reaction_selection,0,1)
+        plotMod_sublayout.addWidget(self.show_button,1,0);      plotMod_sublayout.addWidget(self.hide_button,1,1)
+        
 
         plotMod_layout.addLayout(plotMod_sublayout)
-        plotMod_layout.addWidget(self.show_button)
-        plotMod_layout.addWidget(self.hide_button)
         plotMod_layout.addWidget(self.write_button)
+
+
+        # Input File area
+        self.inp_save_btn = QPushButton("Save");    self.inp_save_btn.clicked.connect(self.write_input_file)
+        self.inp_load_btn = QPushButton("Load");    self.inp_load_btn.clicked.connect(self.read_input_file)
+        self.inp_file_path = QLineEdit(); 
+
+        inputFile_sublayout1.addWidget(self.inp_save_btn)
+        inputFile_sublayout1.addWidget(self.inp_load_btn)
+        inputFile_layout.addLayout(inputFile_sublayout1)
+        inputFile_layout.addWidget(self.inp_file_path)
+        inputFile_area.setLayout(inputFile_layout)
+
+        # Result File area
+        self.res_save_btn = QPushButton("Save");    self.res_save_btn.clicked.connect(self.write_result_file)
+        self.res_load_btn = QPushButton("Load");    self.res_load_btn.clicked.connect(self.read_result_file)
+        self.res_file_path = QLineEdit(); 
+
+        resultFile_sublayout1.addWidget(self.res_save_btn)
+        resultFile_sublayout1.addWidget(self.res_load_btn)
+        resultFile_layout.addLayout(resultFile_sublayout1)
+        resultFile_layout.addWidget(self.res_file_path)
+        resultFile_area.setLayout(resultFile_layout)
+
+
     
-        filter_area.setLayout(filter_layout)
+        filter_area.setLayout(filter_sublayout)
         pilegrid_area.setLayout(pilegrid_layout)
         plotMod_area.setLayout(plotMod_layout)
 
-        aux_area.addWidget(pilegrid_area)
-        aux_area.addWidget(filter_area)
-        aux_area.addWidget(plotMod_area)
+        aux_area.addWidget(pilegrid_area,22)
+        aux_area.addWidget(filter_area,20)
+        aux_area.addWidget(plotMod_area,22)
+        aux_area.addWidget(inputFile_area,18)
+        aux_area.addWidget(resultFile_area,18)
 
         # Add view-, config-, pile-, and pplace-area to result layout
         result_layout.addWidget(self.view_area,1)
@@ -878,7 +935,7 @@ class MainWindow(QDialog):
 
         self.runningTIme        = QLineEdit("-");   self.runningTIme.setReadOnly(True);      self.runningTIme.setMaximumWidth(50)
         self.estimTime          = QLineEdit("-");   self.estimTime.setReadOnly(True);        self.estimTime.setMaximumWidth(50)
-        self.status             = QLineEdit("");   self.status.setReadOnly(True);           self.status.setMaximumWidth(200);      self.status.setStyleSheet("color: orange; font: italic")#; self.status.setStyleSheet("font: italic")
+        self.status             = QLineEdit("");    self.status.setReadOnly(True);           self.status.setMaximumWidth(200);      self.status.setStyleSheet("color: orange; font: italic")#; self.status.setStyleSheet("font: italic")
         self.progress_area      = QGroupBox("Progress")
         progress_layout         = QHBoxLayout()
         self.progress_bar       = QProgressBar()
