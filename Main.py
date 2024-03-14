@@ -153,6 +153,15 @@ class MainWindow(QDialog):
         [pg_data.bearing_arr, pg_data.incl_arr, pg_data.xvec_arr, pg_data.yvec_arr, pg_data.totConfigs, pg_data.nrConfigs, pg_data.numberSolvedConfigs,pg_data.pos_per, pg_data.rot_per, pg_data.inc_per, pg_data.nMaxPileConfig, pg_data.nMinPileConfig]  = resultData
         [self.npiles, self.nvert, self.singdir, self.plen, self.incl, self.path, self.slab_h, self.slab_w, self.edge_d, self.p_spacing, self.p_columns, self.p_rows, self.colision, self.method, self.xvec, self.yvec, self.col_up, self.col_down] = inputData
 
+        self.pos_conf.setText(str(pg_data.totConfigs))
+        self.tot_conf.setText(str(pg_data.nrConfigs))
+        self.fil_conf.setText(str(pg_data.numberSolvedConfigs))
+        self.pos_per.setText(str(pg_data.pos_per))
+        self.rot_per.setText(str(pg_data.rot_per))
+        self.inc_per.setText(str(pg_data.inc_per))
+
+        self.status.setText('Results fetched from file ' + str(filename))
+
         self.set_new_input()
         self.send_input()
         self.filter_case_list()
@@ -356,6 +365,17 @@ class MainWindow(QDialog):
         self.write_button.setDisabled(False)
         self.grid_gen.setDisabled(False)
         self.grid_view.setDisabled(False)
+        self.grid_remove.setDisabled(False)
+
+        self.inp_save_btn.setDisabled(False)
+        self.inp_load_btn.setDisabled(False)
+        self.res_save_btn.setDisabled(False)
+        self.res_load_btn.setDisabled(False)
+
+        self.show_button.setDisabled(False)
+        self.hide_button.setDisabled(False)
+
+        self.configList.setDisabled(False)
 
     def set_running_status(self):
         self.configButton.setDisabled(True)  
@@ -366,6 +386,18 @@ class MainWindow(QDialog):
         self.write_button.setDisabled(True)
         self.grid_gen.setDisabled(True)
         self.grid_view.setDisabled(True)
+        self.grid_remove.setDisabled(True)
+
+        self.inp_save_btn.setDisabled(True)
+        self.inp_load_btn.setDisabled(True)
+        self.res_save_btn.setDisabled(True)
+        self.res_load_btn.setDisabled(True)
+
+        self.show_button.setDisabled(True)
+        self.hide_button.setDisabled(True)
+
+        self.configList.setDisabled(True)
+    
 
     def set_paused_status(self):
         self.configButton.setDisabled(True)  
@@ -376,6 +408,17 @@ class MainWindow(QDialog):
         self.write_button.setDisabled(False)
         self.grid_gen.setDisabled(True)
         self.grid_view.setDisabled(True)
+        self.grid_remove.setDisabled(True)
+
+        self.inp_save_btn.setDisabled(True)
+        self.inp_load_btn.setDisabled(True)
+        self.res_save_btn.setDisabled(True)
+        self.res_load_btn.setDisabled(True)
+
+        self.show_button.setDisabled(False)
+        self.hide_button.setDisabled(False)
+
+        self.configList.setDisabled(False)
 
     def show_plot_val(self):
         self.show_plot = True
@@ -503,12 +546,12 @@ class MainWindow(QDialog):
             f.write("len" + "\t")
             f.write("\n")
             for i in range(pg_data.npiles):
-                f.write(str(pg_data.bearing[i]) + "\t")
-                f.write(str(pg_data.x1vec[i]) + "\t")
-                f.write(str(pg_data.y1vec[i]) + "\t")
+                f.write(str(round(pg_data.bearing[i],2)) + "\t")
+                f.write(str(round(pg_data.x1vec[i],2)) + "\t")
+                f.write(str(round(pg_data.y1vec[i],2)) + "\t")
                 f.write(str(0) + "\t")
-                f.write(str(pg_data.incl[i]) + "\t")
-                f.write(str(pg_data.pLen) + "\t")
+                f.write(str(round(pg_data.incl[i],2)) + "\t")
+                f.write(str(round(pg_data.pLen,2)) + "\t")
                 f.write("\n")
 
             self.status.setText('Current config written to file!')
