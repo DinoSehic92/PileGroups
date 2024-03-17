@@ -1,5 +1,6 @@
 import sys
 import numpy as np
+import time
 
 import qdarktheme
 import pyqtgraph as pg
@@ -7,19 +8,23 @@ import pyqtgraph as pg
 from PySide6.QtWidgets import QDialog,QApplication
 from PySide6.QtCore import QThreadPool, Signal, Slot, QObject
 
-from pyfiles.mixin_ui import UIMixin
-from pyfiles.mixin_util import UtilMixin
-from pyfiles.mixin_solver import SolverMixin
-
+from pyfiles.pile_solver        import pileGroupSolver
+from pyfiles.config_generator   import pileConfigGenerator
+from pyfiles.mixin_ui           import UIMixin
+from pyfiles.mixin_util         import UtilMixin
 
 class Signals(QObject):
     completed   = Signal()
     progress    = Signal()
     stop        = Signal()
+    sleep       = Signal()
     check       = Signal()
 
+    paused       = False
+    running      = True
 
-class MainWindow(QDialog,UIMixin,UtilMixin,SolverMixin):
+
+class MainWindow(QDialog,UIMixin,UtilMixin):
 
     def __init__(self):
         super().__init__()
@@ -98,43 +103,54 @@ class MainWindow(QDialog,UIMixin,UtilMixin,SolverMixin):
             
 ## CONFIG RUN ## ------------------------------------------------------------------------------------------------------------------------------
 
-    def run_config(self): # Initiate config worker
+    def init_config_run(self): # Initiate config worker
         try: 
             self.read_input()
         except:
             self.status.setText('Error in input data')
             return
-        self.prio = int(self.prioCombo.currentText())
+
+        self.progress_val   = 0
+        self.progress_bar.setValue(0)
+
         self.status.setText('Running Config analysis...')
+
         self.set_running_status()
         self.init_timer()
 
-        self.worker = self.worker_config
-        self.signal = Signals()
-        self.threadpool = QThreadPool()
-        self.threadpool.start(self.worker)
+        self.signal         = Signals()
+        self.threadpool     = QThreadPool()
 
-        self.progress_val = 0
-        self.progress_bar.setValue(0)
+        self.threadpool.start(self.worker_config)
+
         self.signal.completed.connect(self.show_config)
         self.signal.progress.connect(self.update_progress_bar)
 
 
     @Slot()
     def worker_config(self): # Config worker
-        self.genPileConfigs()
-        self.signal.completed.emit()
+        pCfg                = pileConfigGenerator(self.yvec, self.xvec, self.nvert, self.incl, self.singdir, self.npiles, self.colision, self.p_spacing, self.signal)
+        self.nTotCfg        = pCfg.nTotCfg
+        self.nSavedCfg      = pCfg.nSavedCfg    
+        self.pos_per        = pCfg.pos_per        
+        self.rot_per        = pCfg.rot_per         
+        self.inc_per        = pCfg.inc_per   
+        self.x1vec_arr      = pCfg.x1vec_arr      
+        self.y1vec_arr      = pCfg.y1vec_arr   
+        self.bearing_arr    = pCfg.bearing_arr
+        self.incl_arr       = pCfg.incl_arr
 
 
     def show_config(self): # Config worker at completion
-        if self.running == True:
+        if self.signal.running == True:
             self.progress_bar.setValue(100)
+            self.stop_timer()
             self.stop_timer()
             self.status.setText('Config analysis complete!')
             self.set_ready_status()
+
             self.pos_conf_line.setText(str(self.nTotCfg))
             self.tot_conf_line.setText(str(self.nSavedCfg))
-            self.fil_conf_line.setText("-")
             self.pos_per_line.setText(str(self.pos_per))
             self.rot_per_line.setText(str(self.rot_per))
             self.inc_per_line.setText(str(self.inc_per))
@@ -142,7 +158,7 @@ class MainWindow(QDialog,UIMixin,UtilMixin,SolverMixin):
 
 ## INFL RUN ## ------------------------------------------------------------------------------------------------------------------------------
 
-    def run_infl(self): # Initiated influence run worker
+    def init_influence_run(self): # Initiated influence run worker
 
         if hasattr(self, 'nSavedCfg') == False:
             self.status.setText('No configs found')
@@ -176,7 +192,41 @@ class MainWindow(QDialog,UIMixin,UtilMixin,SolverMixin):
 
     @Slot()
     def worker_infl(self): # Influence worker
-        self.pileInfluenceRun()
+        print("- Running influence analysis...")
+
+        self.read_loadcases()
+
+        self.ep1                    = [1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0]
+        self.ep2                    = [2.0e11, 1.2193e-2]
+
+        self.nSolvedCfg             = 0
+        self.nMaxPileConfig         = np.zeros((self.nSavedCfg,self.npiles_tot))
+        self.nMinPileConfig         = np.zeros((self.nSavedCfg,self.npiles_tot))
+        
+        for config in range(self.nSavedCfg):
+
+            if self.signal.running == False:
+                return
+            while self.signal.paused == True:
+                time.sleep(0.1)
+
+            if config % int(self.nSavedCfg/100) == 0 :
+                self.signal.progress.emit()
+
+            self.pileExpand(config)
+
+            pgs = pileGroupSolver(self.x1vec, self.y1vec, self.x2vec, self.y2vec, self.bearing, self.inclvek, self.npiles_tot, self.plen, self.ep2, self.method, self.lc, self.nrVal)
+            Nvek = pgs.Nvek
+
+            for i in range(self.npiles_tot):
+                self.nMaxPileConfig[config,i] = np.max(Nvek[i])
+                self.nMinPileConfig[config,i] = np.min(Nvek[i])
+            
+            self.signal.check.emit()
+            self.nSolvedCfg = self.nSolvedCfg + 1
+
+        if self.signal.running == True:
+            self.signal.completed.emit()
 
 
     def infl_run_at_completion(self): # At influence worker completion
@@ -184,6 +234,8 @@ class MainWindow(QDialog,UIMixin,UtilMixin,SolverMixin):
         self.status.setText('Influence analysis complete!')
         self.progress_bar.setValue(100)
         self.set_ready_status()
+
+
 
 
 ## PLOT ## ------------------------------------------------------------------------------------------------------------------------------

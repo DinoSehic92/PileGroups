@@ -6,6 +6,66 @@ from PySide6.QtCore import QTimer
 
 class UtilMixin:
 
+## AUX ## ------------------------------------------------------------------------------------------------------------------------------
+
+    def pileExpand(self,nr): # Expanding pile data from a single quadrant
+        
+        a = [1, -1, -1, 1]
+        b = [1, 1, -1, -1]
+        c = [0, 90, 180, 270]
+
+        # Quadrant data
+        self.x2vec_q        = np.zeros((self.npiles))
+        self.y2vec_q        = np.zeros((self.npiles))
+        self.plenvek_q      = np.ones((self.npiles))*self.plen
+
+        # Full slab data 
+        self.bearing        = np.zeros((self.npiles_tot))
+        self.x1vec          = np.zeros((self.npiles_tot))
+        self.y1vec          = np.zeros((self.npiles_tot))
+        self.z1vec          = np.zeros((self.npiles_tot))
+        self.x2vec          = np.zeros((self.npiles_tot))
+        self.y2vec          = np.zeros((self.npiles_tot))
+        self.inclvek        = np.zeros((self.npiles_tot))
+        self.plenvek        = np.zeros((self.npiles_tot))
+        self.z1vec          = np.zeros((self.npiles_tot))
+
+
+        # Set current pile config from arr-vec
+        self.bearing_q      = self.bearing_arr[nr]
+        self.x1vec_q        = self.x1vec_arr[nr]
+        self.y1vec_q        = self.y1vec_arr[nr]
+        self.inclvek_q      = self.incl_arr[nr]
+
+        for i in range(self.npiles):
+            if self.inclvek_q[i] == 0:
+                self.x2vec_q[i] = self.x1vec_q[i]
+                self.y2vec_q[i] = self.y1vec_q[i]
+            else:
+                self.x2vec_q[i] = self.x1vec_q[i] + np.cos(np.radians(self.bearing_q[i]))*self.plen/self.inclvek_q[i]
+                self.y2vec_q[i] = self.y1vec_q[i] + np.sin(np.radians(self.bearing_q[i]))*self.plen/self.inclvek_q[i]
+
+        iter = 0
+        for i in range(4):
+            for j in range(self.npiles):
+
+                self.x1vec[iter]    = a[i]*self.x1vec_q[j]
+                self.y1vec[iter]    = b[i]*self.y1vec_q[j]
+                self.x2vec[iter]    = a[i]*self.x2vec_q[j]
+                self.y2vec[iter]    = b[i]*self.y2vec_q[j]
+                self.inclvek[iter]  = self.inclvek_q[j]
+                self.plenvek[iter]  = self.plenvek_q[j]
+
+                if i > 0:
+                    if self.bearing[iter-self.npiles] == c[i]:
+                        self.bearing[iter] = self.bearing[iter-self.npiles]
+                    else:
+                        self.bearing[iter] = self.bearing[iter-self.npiles] + 180
+                else:
+                    self.bearing[iter] = self.bearing_q[j]
+
+                iter = iter + 1
+
 ## AUX RUN ## ------------------------------------------------------------------------------------------------------------------------------
 
     def update_progress_bar(self):  # Update progress bar by 1 percent
@@ -30,29 +90,26 @@ class UtilMixin:
         self.timer.stop()
 
     def pause_worker(self): # Pause worker
-        if self.running == True:
-            print('Run paused...')
-            self.pause = True
-            self.status.setText('Run paused...')
-            self.timer.stop()
-            self.set_paused_status()
+        print('Run paused...')
+        self.signal.paused = True
+        self.status.setText('Run paused...')
+        self.timer.stop()
+        self.set_paused_status()
 
     def resume_worker(self): # Resume worker
-        if self.running == True:
-            print('Run resumed...')
-            self.pause = False
-            self.status.setText('Run resumed!')
-            self.timer.start(1000) 
-            self.set_running_status()
+        print('Run resumed...')
+        self.signal.paused = False
+        self.status.setText('Run resumed!')
+        self.timer.start(1000) 
+        self.set_running_status()
 
     def stop_worker(self): # Stop worker
-        if self.running == True:
-            print('Run aborted...')
-            self.running = False
-            self.pause = False
-            self.status.setText('Influence analysis aborted!')
-            self.timer.stop()  
-            self.set_ready_status()
+        print('Run aborted...')
+        self.signal.running = False
+        self.signal.paused = False
+        self.status.setText('Run aborted!')
+        self.timer.stop()  
+        self.set_ready_status()
 
 ## INPUT ## ------------------------------------------------------------------------------------------------------------------------------
 
@@ -177,7 +234,7 @@ class UtilMixin:
         self.inputPath      = str("OutputFile_" + filename) + ".pkl"
 
         inputData           = [self.npiles, self.nvert, self.singdir, self.plen, self.incl, self.path, self.slab_h, self.slab_w, self.edge_d, self.p_spacing, self.p_columns, self.p_rows, self.colision, self.method, self.xvec, self.yvec, self.col_up, self.col_down] 
-        resultData          = [self.bearing_arr, self.incl_arr, self.xvec_arr, self.yvec_arr, self.nTotCfg, self.nSavedCfg, self.nSolvedCfg, self.pos_per, self.rot_per, self.inc_per, self.nMaxPileConfig, self.nMinPileConfig] 
+        resultData          = [self.bearing_arr, self.incl_arr, self.x1vec_arr, self.y1vec_arr, self.nTotCfg, self.nSavedCfg, self.nSolvedCfg, self.pos_per, self.rot_per, self.inc_per, self.nMaxPileConfig, self.nMinPileConfig] 
 
 
         with open(self.inputPath, "wb") as f:
@@ -201,7 +258,7 @@ class UtilMixin:
             for i in range(12):
                 resultData.append(pkl.load(f))
 
-        [self.bearing_arr, self.incl_arr, self.xvec_arr, self.yvec_arr, self.nTotCfg, self.nSavedCfg, self.nSolvedCfg,self.pos_per, self.rot_per, self.inc_per, self.nMaxPileConfig, self.nMinPileConfig]  = resultData
+        [self.bearing_arr, self.incl_arr, self.x1vec_arr, self.y1vec_arr, self.nTotCfg, self.nSavedCfg, self.nSolvedCfg,self.pos_per, self.rot_per, self.inc_per, self.nMaxPileConfig, self.nMinPileConfig]  = resultData
         [self.npiles, self.nvert, self.singdir, self.plen, self.incl, self.path, self.slab_h, self.slab_w, self.edge_d, self.p_spacing, self.p_columns, self.p_rows, self.colision, self.method, self.xvec, self.yvec, self.col_up, self.col_down] = inputData
 
         self.pos_conf_line.setText(str(self.nTotCfg))
@@ -308,6 +365,7 @@ class UtilMixin:
         self.show_button.setDisabled(False)
         self.hide_button.setDisabled(False)
         self.configList.setDisabled(False)
+
 
     def set_running_status(self): # Disables/Enables UI buttons for status Running
         self.configButton.setDisabled(True)  

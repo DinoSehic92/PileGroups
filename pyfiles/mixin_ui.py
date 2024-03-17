@@ -67,8 +67,8 @@ class UIMixin:
 
         buttonRow   = QHBoxLayout()
         self.lcButton            = QPushButton("Load check")               ; self.lcButton.clicked.connect(self.loadcase_analysis)
-        self.configButton        = QPushButton("Config")                   ; self.configButton.clicked.connect(self.run_config)
-        self.runButton           = QPushButton("Run")                      ; self.runButton.clicked.connect(self.run_infl)
+        self.configButton        = QPushButton("Config")                   ; self.configButton.clicked.connect(self.init_config_run)
+        self.runButton           = QPushButton("Run")                      ; self.runButton.clicked.connect(self.init_influence_run)
         self.pauseButton         = QPushButton("Pause")                    ; self.pauseButton.clicked.connect(self.pause_worker)
         self.resumeButton        = QPushButton("Resume")                   ; self.resumeButton.clicked.connect(self.resume_worker)
         self.stopButton          = QPushButton("Stop")                     ; self.stopButton.clicked.connect(self.stop_worker)
