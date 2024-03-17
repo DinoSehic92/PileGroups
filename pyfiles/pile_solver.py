@@ -1,19 +1,16 @@
 import numpy as np
 
-from math import factorial, atan
-import time
+from math import atan
 
 from calfem.core import beam3e
 from calfem.core import bar3e
-from calfem.core import bar3s
 from calfem.core import assem
 from calfem.core import coordxtr
 from calfem.core import solveq
-#from calfem.core import extractEldisp
 
 class pileGroupSolver:
 
-    def __init__(self, x1vec, y1vec, x2vec, y2vec, bearing, inclvek, npiles_tot, plen, ep2, method, lc, nrVal):
+    def __init__(self, x1vec, y1vec, x2vec, y2vec, bearing, inclvek, npiles_tot, plen, ep1, ep2, method, lc, nrVal):
 
         self.x1vec          = x1vec # Coordinate system rotated??
         self.y1vec          = y1vec
@@ -23,13 +20,14 @@ class pileGroupSolver:
         self.inclvek        = inclvek
         self.npiles_tot     = npiles_tot
         self.plen           = plen
+        self.ep1            = ep1
         self.ep2            = ep2
         self.method         = method
         self.lc             = lc
         self.nrVal          = nrVal
 
-        self.Ninfl = np.zeros((self.npiles_tot,6))
-        self.Nvek = np.zeros((self.npiles_tot,self.nrVal))
+        self.Ninfl          = np.zeros((self.npiles_tot,6))
+        self.Nvek           = np.zeros((self.npiles_tot,self.nrVal))
 
         if self.method == 0:
             self.fe_solver()
@@ -50,16 +48,15 @@ class pileGroupSolver:
 
         self.generate_elements()
 
-        self.bc         = np.arange((6*self.npiles_tot)+7, self.nDofs+1)
-        self.K          = np.zeros((self.nDofs, self.nDofs))
+        self.bc                     = np.arange((6*self.npiles_tot)+7, self.nDofs+1)
 
         self.assemble_elements()
 
         for i in range(6):
-            self.f                  = np.zeros((self.nDofs, 1))
-            self.f[i]               = 1
-            [self.a, self.r]        = solveq(self.K, self.f, self.bc)
-            self.Ninfl[:,i]         = self.analyseResults(self.a)
+            f                       = np.zeros((self.nDofs, 1))
+            f[i]                    = 1
+            [self.a, self.r]        = solveq(self.K, f, self.bc)
+            self.Ninfl[:,i]         = self.analyseResults()
 
 
     def pkr_solver(self):
@@ -174,19 +171,18 @@ class pileGroupSolver:
         
         for i in range(self.npiles_tot):
         
-            p1      = np.array([0, 0, 0])
-            p2      = np.array([self.Ex1[i, :][0], self.Ey1[i, :][0], self.Ez1[i, :][0]])
-            p3      = np.array([self.Ex1[i, :][1], self.Ey1[i, :][1], self.Ez1[i, :][1]])
-
-            v1      = np.subtract(p2, p1)
-            v2      = np.subtract(p3, p1)
-            eo      = np.cross(v1, v2)
+            p1          = np.array([0, 0, 0])
+            p2          = np.array([self.Ex1[i, :][0], self.Ey1[i, :][0], self.Ez1[i, :][0]])
+            p3          = np.array([self.Ex1[i, :][1], self.Ey1[i, :][1], self.Ez1[i, :][1]])
+    
+            v1          = np.subtract(p2, p1)
+            v2          = np.subtract(p3, p1)
+            eo          = np.cross(v1, v2)
         
-            self.Ke      = beam3e(self.Ex1[i, :], self.Ey1[i, :], self.Ez1[i, :], eo, self.ep1)
-            self.K       = assem(self.Edof1[i, :], self.K, self.Ke)
-
-            self.Ke      = bar3e(self.Ex2[i, :], self.Ey2[i, :], self.Ez2[i, :], self.ep2)
-            self.K       = assem(self.Edof2[i, :], self.K, self.Ke)
+            self.Ke     = beam3e(self.Ex1[i, :], self.Ey1[i, :], self.Ez1[i, :], eo, self.ep1)
+            self.K      = assem(self.Edof1[i, :], self.K, self.Ke)
+            self.Ke     = bar3e(self.Ex2[i, :], self.Ey2[i, :], self.Ez2[i, :], self.ep2)
+            self.K      = assem(self.Edof2[i, :], self.K, self.Ke)
 
     
     def generateLoads(self, nr):
@@ -205,7 +201,7 @@ class pileGroupSolver:
 
     def analyseResults(self):
 
-        Nvek        = np.zeros((self.npiles_tot))
+        Npile       = np.zeros((self.npiles_tot))
 
         nElements   = self.Edof2.shape[0]
         nDofs       = self.Edof2.shape[1]
@@ -233,8 +229,6 @@ class pileGroupSolver:
 
             eps = (dx*Ed[i][0]/L + dy*Ed[i][1]/L + dz*Ed[i][2]/L)/L
 
-            Ntest = -eps*E*A
+            Npile[i] = -eps*E*A
 
-            Nvek[i] = Ntest
-
-        return Nvek
+        return Npile

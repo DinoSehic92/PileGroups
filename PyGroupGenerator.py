@@ -179,6 +179,7 @@ class PyGroupGenerator(QDialog,UIMixin,UtilMixin):
 
         self.init_timer()
 
+        #self.worker_infl()
         self.threadpool.start(self.worker_infl)
 
         self.progress_val = 0
@@ -195,7 +196,7 @@ class PyGroupGenerator(QDialog,UIMixin,UtilMixin):
 
         self.read_loadcases()
 
-        self.ep1                    = [1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0]
+        self.ep1                    = [2.0e11, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0]
         self.ep2                    = [2.0e11, 1.2193e-2]
 
         self.nSolvedCfg             = 0
@@ -213,8 +214,8 @@ class PyGroupGenerator(QDialog,UIMixin,UtilMixin):
                 self.signal.progress.emit()
 
             self.pileExpand(config)
-
-            pgs = pileGroupSolver(self.x1vec, self.y1vec, self.x2vec, self.y2vec, self.bearing, self.inclvek, self.npiles_tot, self.plen, self.ep2, self.method, self.lc, self.nrVal)
+            
+            pgs = pileGroupSolver(self.x1vec, self.y1vec, self.x2vec, self.y2vec, self.bearing, self.inclvek, self.npiles_tot, self.plen, self.ep1, self.ep2, self.method, self.lc, self.nrVal)
             Nvek = pgs.Nvek
 
             for i in range(self.npiles_tot):
