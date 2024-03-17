@@ -71,6 +71,7 @@ class pileConfigGenerator:
 
 
     def filter_cfg(self):
+        iter                = 0
         self.nTotCfg        = self.setnr*len(self.piledirmat)*len(self.pileinclmat)
         self.pos_per        = self.setnr
         self.rot_per        = len(self.piledirmat)

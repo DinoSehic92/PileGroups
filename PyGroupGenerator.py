@@ -24,12 +24,10 @@ class Signals(QObject):
     running      = True
 
 
-class MainWindow(QDialog,UIMixin,UtilMixin):
+class PyGroupGenerator(QDialog,UIMixin,UtilMixin):
 
     def __init__(self):
         super().__init__()
-
-        self.signal = Signals()
 
         self.drawUI()
         self.read_input_file(1)
@@ -110,6 +108,9 @@ class MainWindow(QDialog,UIMixin,UtilMixin):
             self.status.setText('Error in input data')
             return
 
+        self.signal         = Signals()
+        self.threadpool     = QThreadPool()
+
         self.progress_val   = 0
         self.progress_bar.setValue(0)
 
@@ -117,9 +118,6 @@ class MainWindow(QDialog,UIMixin,UtilMixin):
 
         self.set_running_status()
         self.init_timer()
-
-        self.signal         = Signals()
-        self.threadpool     = QThreadPool()
 
         self.threadpool.start(self.worker_config)
 
@@ -163,6 +161,9 @@ class MainWindow(QDialog,UIMixin,UtilMixin):
         if hasattr(self, 'nSavedCfg') == False:
             self.status.setText('No configs found')
             return
+    
+        self.signal         = Signals()
+        self.threadpool     = QThreadPool()
         
         self.prio = int(self.prioCombo.currentText())
         self.set_running_status()
@@ -178,8 +179,6 @@ class MainWindow(QDialog,UIMixin,UtilMixin):
 
         self.init_timer()
 
-        self.signal     = Signals()
-        self.threadpool = QThreadPool()
         self.threadpool.start(self.worker_infl)
 
         self.progress_val = 0
@@ -428,7 +427,7 @@ if __name__ == '__main__':
 
     app.setStyleSheet(qdarktheme.load_stylesheet("dark"))
 
-    window = MainWindow()
+    window = PyGroupGenerator()
     sys.exit(window.exec())
 
 
