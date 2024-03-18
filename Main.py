@@ -56,7 +56,7 @@ class MainWindow(QDialog):
         #self.w_slab.setText("6")
         #self.pile_dist.setText("1.0")
 #
-        #self.path.setText("C:\\Utvecklingsprojekt\\PileGroups\\Underlag\Loadcases.xlsx")
+        #self.path.setText("C:\Users\ANUBAV\OneDrive - Ramboll\Documents\GIT\PileGroups\Underlag\Loadcases4.xlsx")
 #
         #xvec        = [0.5, 0.5, 0.5, 1.5, 1.5, 1.5, 2.5, 2.5, 2.5, 0.5, 1.5, 2.5, "", "", "", "", "", "", "", ""]
         #yvec        = [2, 3, 4, 2, 3, 4, 2, 3, 4, 1, 1, 1, "", "", "", "", "", "", "", ""]
@@ -86,7 +86,7 @@ class MainWindow(QDialog):
         self.p_columns_inp.setValue(2)
         self.p_rows_inp.setValue(2)
 
-        self.path_inp.setText("C:\\Utvecklingsprojekt\\PileGroups\\Underlag\Loadcases4.xlsx")
+        self.path_inp.setText("C:\\Users\\ANUBAV\\OneDrive - Ramboll\\Documents\\GIT\\PileGroups\\Underlag\\Loadcases4.xlsx")
 
         self.show_plot      = False
 
