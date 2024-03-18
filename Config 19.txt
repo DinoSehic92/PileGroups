@@ -1,0 +1,2 @@
+dir	x	y	y	incl	len	
+0.0	1.6	2.2	0	
