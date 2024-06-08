@@ -16,6 +16,8 @@ class pileConfigGenerator:
         self.p_spacing = p_spacing
         self.signal = signal
 
+        print(colision)
+
         self.generate_all_cfg()
         self.filter_cfg()
 

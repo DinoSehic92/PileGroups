@@ -210,8 +210,11 @@ class PyGroupGenerator(QDialog,UIMixin,UtilMixin):
             while self.signal.paused == True:
                 time.sleep(0.1)
 
-            if config % int(self.nSavedCfg/100) == 0 :
+            if self.nSavedCfg < 100: # IF nSavedCfg < 100 just emit progress every iteration, else emit each percent
                 self.signal.progress.emit()
+            else:
+                if config % int(self.nSavedCfg/100) == 0 :
+                    self.signal.progress.emit()
 
             self.pileExpand(config)
             
@@ -423,7 +426,7 @@ class PyGroupGenerator(QDialog,UIMixin,UtilMixin):
 
 
 if __name__ == '__main__':
-    qdarktheme.enable_hi_dpi() #Test
+    #qdarktheme.enable_hi_dpi() #Test
     app = QApplication(sys.argv)
 
     app.setStyleSheet(qdarktheme.load_stylesheet("dark"))
