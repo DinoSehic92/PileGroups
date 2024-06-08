@@ -175,8 +175,12 @@ class UtilMixin:
     def read_loadcases(self): # Read loadcases 
         print("- Reading loadcases...")
         # Läser av excelark och genererar matris med samtliga lastfall
-        wb = xl.readxl(self.path)
-        sheet = wb.ws(ws='Sheet1')
+        try: 
+            wb = xl.readxl(self.path)
+            sheet = wb.ws(ws='Sheet1')
+        except: 
+            self.status.setText('No LC file found...')
+            return
 
         self.lc_temp =[] # Temporary list for storage before knowing number of loadcases
 
